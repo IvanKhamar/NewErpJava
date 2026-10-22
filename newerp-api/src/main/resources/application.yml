@@ -1,0 +1,43 @@
+spring:
+  application:
+    name: newerp
+  # Optional file with your local passwords; it is in .gitignore. See application-local.example.yml.
+  config:
+    import: optional:file:./application-local.yml,optional:file:../application-local.yml
+  datasource:
+    url: ${NEWERP_DB_URL:jdbc:mysql://localhost:3306/newerp_dev}
+    username: ${NEWERP_DB_USER:newerp}
+    password: ${NEWERP_DB_PASSWORD:}
+  jpa:
+    # Database-first: Hibernate only checks that entities match the tables, it never changes the schema.
+    hibernate:
+      ddl-auto: validate
+    # No lazy loading while the JSON is written: queries stay inside services.
+    open-in-view: false
+  mvc:
+    problemdetails:
+      enabled: true
+
+# /health like the .NET version (includes a database check)
+management:
+  endpoints:
+    web:
+      base-path: /
+      exposure:
+        include: health
+
+# Same settings as appsettings.json in the .NET version
+erp:
+  language-id: 3
+bonus:
+  percent: 1.0
+  counted-status-ids: [22, 20]
+stock:
+  reorder-target-factor: 2
+production:
+  order-subtract-status-ids: [18, 20, 21, 22, 23, 25]
+
+# API docs: /swagger-ui.html
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html

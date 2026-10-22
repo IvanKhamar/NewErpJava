@@ -1,0 +1,7 @@
+# Copy this file to application-local.yml (same folder) and put your real password there.
+# application-local.yml is in .gitignore, so it never reaches GitHub.
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/newerp_dev
+    username: newerp
+    password: put_your_password_here
