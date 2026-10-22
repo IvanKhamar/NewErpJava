@@ -22,6 +22,16 @@ spring:
       date: iso
       date-time: iso
 
+# Session cookie, same rules as the .NET auth cookie
+server:
+  servlet:
+    session:
+      timeout: 8h # idle time: while the user works, the session goes on (sliding expiration)
+      cookie:
+        name: newerp.auth
+        http-only: true # JavaScript on the page cannot read it
+        same-site: strict # other sites cannot send requests on the user's behalf (CSRF protection)
+
 # /health like the .NET version (includes a database check)
 management:
   endpoints:
