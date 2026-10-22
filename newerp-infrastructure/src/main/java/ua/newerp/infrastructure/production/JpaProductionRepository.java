@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -19,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.LockModeType;
 import ua.newerp.application.production.CategoryLinkDto;
+import ua.newerp.application.production.OrderSizeLine;
 import ua.newerp.application.production.ComponentBomLineDto;
 import ua.newerp.application.production.ComponentDto;
 import ua.newerp.application.production.ProductionLogDto;
@@ -39,6 +41,7 @@ import ua.newerp.domain.production.ProductionSize;
 import ua.newerp.domain.production.SewnBomLine;
 import ua.newerp.domain.stock.StockItem;
 import ua.newerp.domain.stock.StockMovement;
+import ua.newerp.infrastructure.ErpProperties;
 
 /** Tables of the old StockTrack module dd_stock_production* (structure reconstructed, see db/reconstructed.sql). */
 @Repository
@@ -48,12 +51,121 @@ class JpaProductionRepository implements ProductionRepository {
     private record ItemName(String name, String unit) {
     }
 
+    private record ProductLink(int productId, int productionId, boolean hasFilter) {
+    }
+
     private final EntityManager em;
     private final JdbcClient jdbc;
+    private final int languageId;
 
-    JpaProductionRepository(EntityManager em, JdbcClient jdbc) {
+    JpaProductionRepository(EntityManager em, JdbcClient jdbc, ErpProperties properties) {
         this.em = em;
         this.jdbc = jdbc;
+        this.languageId = properties.languageId();
+    }
+
+    @Override
+    public List<OrderSizeLine> getOrderSizeLines(int orderId) {
+        record Product(int orderProductId, int productId, String name, int quantity) {
+        }
+        List<Product> products = jdbc.sql("SELECT order_product_id, product_id, name, quantity FROM dd_order_product WHERE order_id = :id")
+                .param("id", orderId)
+                .query((rs, n) -> new Product(rs.getInt("order_product_id"), rs.getInt("product_id"), rs.getString("name"),
+                        rs.getInt("quantity")))
+                .list();
+        if (products.isEmpty()) {
+            return List.of();
+        }
+        List<Integer> productIds = products.stream().map(Product::productId).distinct().toList();
+
+        // An option in the order points to product_option_value, and a model size to the option_value_id from it.
+        Map<Integer, List<Integer>> options = new HashMap<>();
+        jdbc.sql("""
+                SELECT o.order_product_id, v.option_value_id
+                FROM dd_order_option o
+                JOIN dd_product_option_value v ON v.product_option_value_id = o.product_option_value_id
+                WHERE o.order_id = :id
+                """)
+                .param("id", orderId)
+                .query(rs -> {
+                    options.computeIfAbsent(rs.getInt("order_product_id"), k -> new ArrayList<>()).add(rs.getInt("option_value_id"));
+                });
+
+        Map<Integer, Integer> direct = new HashMap<>();
+        jdbc.sql("""
+                SELECT l.product_id, MIN(l.production_id) AS production_id
+                FROM dd_stock_production_products l
+                JOIN dd_stock_production m ON m.production_id = l.production_id
+                WHERE m.status = 1 AND l.product_id IN (:ids)
+                GROUP BY l.product_id
+                """)
+                .param("ids", productIds)
+                .query(rs -> {
+                    direct.put(rs.getInt("product_id"), rs.getInt("production_id"));
+                });
+
+        // Link through a category: an empty filter means the whole category, otherwise the product name contains the
+        // filter (or equals it, if match_exact). As in the old module, case-insensitive (the database collation).
+        List<ProductLink> byCategory = jdbc.sql("""
+                SELECT pc.product_id, c.production_id, c.name_filter <> '' AS has_filter
+                FROM dd_stock_production_categories c
+                JOIN dd_stock_production m ON m.production_id = c.production_id
+                JOIN dd_product_to_category pc ON pc.category_id = c.oc_category_id
+                JOIN dd_product_description pd ON pd.product_id = pc.product_id
+                WHERE m.status = 1 AND pd.language_id = :lang AND pc.product_id IN (:ids)
+                  AND (c.name_filter = ''
+                       OR (c.match_exact = 1 AND pd.name = c.name_filter)
+                       OR (c.match_exact = 0 AND LOCATE(c.name_filter, pd.name) > 0))
+                """)
+                .param("lang", languageId)
+                .param("ids", productIds)
+                .query((rs, n) -> new ProductLink(rs.getInt("product_id"), rs.getInt("production_id"), rs.getBoolean("has_filter")))
+                .list();
+
+        // A direct link wins over a category, and a category with a filter wins over a whole category.
+        Function<Integer, Integer> productionFor = productId -> direct.containsKey(productId)
+                ? direct.get(productId)
+                : byCategory.stream()
+                        .filter(c -> c.productId() == productId)
+                        .sorted(Comparator.comparing(ProductLink::hasFilter).reversed().thenComparingInt(ProductLink::productionId))
+                        .map(ProductLink::productionId)
+                        .findFirst()
+                        .orElse(null);
+
+        return products.stream()
+                .map(p -> new OrderSizeLine(p.productId(), p.name(), p.quantity(), productionFor.apply(p.productId()),
+                        options.getOrDefault(p.orderProductId(), List.of())))
+                .toList();
+    }
+
+    @Override
+    public List<ProductionModel> findModels(Collection<Integer> productionIds) {
+        if (productionIds.isEmpty()) {
+            return List.of();
+        }
+        return em.createQuery("SELECT m FROM ProductionModel m WHERE m.id IN :ids", ProductionModel.class)
+                .setParameter("ids", productionIds)
+                .setLockMode(LockModeType.PESSIMISTIC_WRITE)
+                .getResultList();
+    }
+
+    @Override
+    public Map<Integer, BigDecimal> getSewnHeldByOrder(int orderId) {
+        Map<Integer, BigDecimal> held = new HashMap<>();
+        jdbc.sql("""
+                SELECT size_id,
+                       SUM(CASE WHEN comment = :taken AND direction = 'out' THEN quantity ELSE 0 END)
+                     - SUM(CASE WHEN comment = :returned AND direction = 'in' THEN quantity ELSE 0 END) AS held
+                FROM dd_stock_production_log
+                WHERE stage = 'sewn' AND comment IN (:taken, :returned)
+                GROUP BY size_id
+                """)
+                .param("taken", ProductionModel.orderComment(orderId))
+                .param("returned", ProductionModel.cancelComment(orderId))
+                .query(rs -> {
+                    held.put(rs.getInt("size_id"), rs.getBigDecimal("held"));
+                });
+        return held;
     }
 
     @Override

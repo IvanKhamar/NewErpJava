@@ -1,7 +1,9 @@
 package ua.newerp.application.production;
 
+import java.math.BigDecimal;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import ua.newerp.domain.production.ComponentStock;
@@ -47,6 +49,18 @@ public interface ProductionRepository {
     List<StockItem> findStockItems(Collection<Integer> itemIds);
 
     List<ProductionLogDto> listLog(ProductionLogFilter filter);
+
+    /** Order lines with the production model and options (empty when the order has no products). */
+    List<OrderSizeLine> getOrderSizeLines(int orderId);
+
+    /** Models with sizes for a stock change, locked like in {@link #findModel}. */
+    List<ProductionModel> findModels(Collection<Integer> productionIds);
+
+    /**
+     * How many sewn pieces of each size (by size id) this order holds now: written off with the comment
+     * "Замовлення #id" minus returned with "Скасування #id". Counted from the shared log, so actions of the old site count too.
+     */
+    Map<Integer, BigDecimal> getSewnHeldByOrder(int orderId);
 
     void add(ProductionLogEntry entry);
 
