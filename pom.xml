@@ -74,13 +74,14 @@
 
     <build>
         <plugins>
-            <!-- Warnings are errors, like TreatWarningsAsErrors in the .NET project -->
+            <!-- Warnings are errors, like TreatWarningsAsErrors in the .NET project.
+                 this-escape is off: entities stay non-final for JPA and their constructors reuse update methods. -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
                     <compilerArgs>
-                        <arg>-Xlint:all,-processing,-serial</arg>
+                        <arg>-Xlint:all,-processing,-serial,-this-escape</arg>
                         <arg>-Werror</arg>
                     </compilerArgs>
                 </configuration>
