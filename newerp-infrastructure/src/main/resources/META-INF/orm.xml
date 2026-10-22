@@ -102,4 +102,138 @@
         </attributes>
     </entity>
 
+    <!-- ═══ Production: tables of the old StockTrack module (dd_stock_production*) ═══ -->
+
+    <entity class="ua.newerp.domain.production.ProductionModel">
+        <table name="dd_stock_production"/>
+        <attributes>
+            <id name="id"><column name="production_id"/><generated-value strategy="IDENTITY"/></id>
+            <basic name="name"/>
+            <basic name="type"/>
+            <basic name="minTotal"/>
+            <basic name="sortOrder"/>
+            <basic name="active"><column name="status"/></basic>
+            <one-to-many name="sizes" orphan-removal="true">
+                <order-by>sortOrder</order-by>
+                <join-column name="production_id" nullable="false"/>
+                <cascade><cascade-all/></cascade>
+            </one-to-many>
+            <one-to-many name="sewnBom" orphan-removal="true">
+                <order-by>id</order-by>
+                <join-column name="production_id" nullable="false"/>
+                <cascade><cascade-all/></cascade>
+            </one-to-many>
+            <!-- The link tables have no id of their own (key = production_id + product_id), so they are
+                 element collections: values that belong to the model. On a change Hibernate rewrites the model's rows. -->
+            <element-collection name="productLinks">
+                <collection-table name="dd_stock_production_products">
+                    <join-column name="production_id"/>
+                </collection-table>
+            </element-collection>
+            <element-collection name="categoryLinks">
+                <collection-table name="dd_stock_production_categories">
+                    <join-column name="production_id"/>
+                </collection-table>
+            </element-collection>
+        </attributes>
+    </entity>
+
+    <entity class="ua.newerp.domain.production.ProductionSize">
+        <table name="dd_stock_production_sizes"/>
+        <attributes>
+            <id name="id"><column name="size_id"/><generated-value strategy="IDENTITY"/></id>
+            <basic name="productionId"><column name="production_id" insertable="false" updatable="false"/></basic>
+            <basic name="name"><column name="size_name"/></basic>
+            <basic name="percent"><column name="percent" precision="5" scale="2"/></basic>
+            <basic name="cutStock"><column name="cut_stock" precision="12" scale="3"/></basic>
+            <basic name="sewnStock"><column name="sewn_stock" precision="12" scale="3"/></basic>
+            <basic name="sortOrder"/>
+            <basic name="optionValueId"><column name="oc_option_value_id"/></basic>
+        </attributes>
+    </entity>
+
+    <entity class="ua.newerp.domain.production.SewnBomLine">
+        <table name="dd_stock_production_sewn_bom"/>
+        <attributes>
+            <id name="id"><column name="bom_id"/><generated-value strategy="IDENTITY"/></id>
+            <basic name="productionId"><column name="production_id" insertable="false" updatable="false"/></basic>
+            <basic name="sizeId"/>
+            <basic name="componentId"/>
+            <basic name="itemId"/>
+            <basic name="qtyPerUnit"><column name="qty_per_unit" precision="12" scale="4"/></basic>
+        </attributes>
+    </entity>
+
+    <entity class="ua.newerp.domain.production.ProductionComponent">
+        <table name="dd_stock_production_components"/>
+        <attributes>
+            <id name="id"><column name="component_id"/><generated-value strategy="IDENTITY"/></id>
+            <basic name="productionId"/>
+            <basic name="name"/>
+            <basic name="sortOrder"/>
+            <one-to-many name="bom" orphan-removal="true">
+                <order-by>id</order-by>
+                <join-column name="component_id" nullable="false"/>
+                <cascade><cascade-all/></cascade>
+            </one-to-many>
+        </attributes>
+    </entity>
+
+    <entity class="ua.newerp.domain.production.ComponentBomLine">
+        <table name="dd_stock_production_component_bom"/>
+        <attributes>
+            <id name="id"><column name="bom_id"/><generated-value strategy="IDENTITY"/></id>
+            <basic name="componentId"><column name="component_id" insertable="false" updatable="false"/></basic>
+            <basic name="sizeId"/>
+            <basic name="itemId"/>
+            <basic name="qtyPerUnit"><column name="qty_per_unit" precision="12" scale="4"/></basic>
+        </attributes>
+    </entity>
+
+    <entity class="ua.newerp.domain.production.ComponentStock">
+        <table name="dd_stock_production_component_stock"/>
+        <id-class class="ua.newerp.infrastructure.production.ComponentStockId"/>
+        <attributes>
+            <id name="componentId"/>
+            <id name="sizeId"/>
+            <basic name="stock"><column name="stock" precision="12" scale="3"/></basic>
+        </attributes>
+    </entity>
+
+    <entity class="ua.newerp.domain.production.ProductionLogEntry">
+        <table name="dd_stock_production_log"/>
+        <attributes>
+            <id name="id"><column name="log_id"/><generated-value strategy="IDENTITY"/></id>
+            <basic name="sizeName"/>
+            <basic name="stage"/>
+            <basic name="direction"/>
+            <basic name="quantity"><column name="quantity" precision="12" scale="3"/></basic>
+            <basic name="stockBefore"><column name="stock_before" precision="12" scale="3"/></basic>
+            <basic name="stockAfter"><column name="stock_after" precision="12" scale="3"/></basic>
+            <basic name="comment"/>
+            <basic name="userId"/>
+            <basic name="username"/>
+            <basic name="createdAt"><column name="date_added"/></basic>
+            <many-to-one name="model" fetch="LAZY"><join-column name="production_id" nullable="false"/></many-to-one>
+            <many-to-one name="size" fetch="LAZY"><join-column name="size_id" nullable="false"/></many-to-one>
+        </attributes>
+    </entity>
+
+    <!-- Embeddables go after all entities: the XML schema fixes the order of elements. -->
+    <embeddable class="ua.newerp.domain.production.ProductionProductLink">
+        <attributes>
+            <basic name="productId"/>
+            <transient name="productionId"/>
+        </attributes>
+    </embeddable>
+
+    <embeddable class="ua.newerp.domain.production.ProductionCategoryLink">
+        <attributes>
+            <basic name="categoryId"><column name="oc_category_id"/></basic>
+            <basic name="nameFilter"/>
+            <basic name="matchExact"/>
+            <transient name="productionId"/>
+        </attributes>
+    </embeddable>
+
 </entity-mappings>

@@ -4,7 +4,7 @@ Java version of [NewErp](https://github.com/IvanKhamar/NewErp): an ERP for a sew
 that gradually replaces the accounting part of an old OpenCart site. It works with the same MySQL database as the
 .NET version, so both can run side by side.
 
-**Status:** Phase 4 done: business rules of all modules (`newerp-domain`), orders (read side), login with roles and user management, and the consumables stock with supplier orders.
+**Status:** Phase 5 done: business rules of all modules (`newerp-domain`), orders (read side), login with roles and user management, the consumables stock with supplier orders, and production (models, cut components, BOMs, cutting and sewing).
 
 ## Stack
 

@@ -16,7 +16,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import ua.newerp.application.auth.AuthenticatedUser;
 import ua.newerp.application.stock.CreatePurchaseOrderRequest;
-import ua.newerp.application.stock.CreatedId;
+import ua.newerp.application.common.CreatedId;
 import ua.newerp.application.stock.PurchaseOrderDto;
 import ua.newerp.application.stock.PurchaseOrderFilter;
 import ua.newerp.application.stock.PurchaseOrderRepository;
