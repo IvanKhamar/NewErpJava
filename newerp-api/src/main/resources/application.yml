@@ -17,6 +17,10 @@ spring:
   mvc:
     problemdetails:
       enabled: true
+    # Query parameters like ?from=2026-10-01 are ISO dates
+    format:
+      date: iso
+      date-time: iso
 
 # /health like the .NET version (includes a database check)
 management:
