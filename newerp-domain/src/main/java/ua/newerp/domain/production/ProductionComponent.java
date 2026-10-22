@@ -22,7 +22,7 @@ public class ProductionComponent {
     private int productionId;
     private String name = "";
     private int sortOrder;
-    private final List<ComponentBomLine> bom = new ArrayList<>();
+    private List<ComponentBomLine> bom = new ArrayList<>();
 
     protected ProductionComponent() {
     }

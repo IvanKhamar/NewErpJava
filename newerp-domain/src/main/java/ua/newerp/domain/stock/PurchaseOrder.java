@@ -41,7 +41,7 @@ public class PurchaseOrder {
     private LocalDateTime createdAt;
     private LocalDateTime orderedAt;
     private LocalDateTime closedAt;
-    private final List<PurchaseOrderLine> lines = new ArrayList<>();
+    private List<PurchaseOrderLine> lines = new ArrayList<>();
 
     protected PurchaseOrder() {
     }
