@@ -4,7 +4,7 @@ Java version of [NewErp](https://github.com/IvanKhamar/NewErp): an ERP for a sew
 that gradually replaces the accounting part of an old OpenCart site. It works with the same MySQL database as the
 .NET version, so both can run side by side.
 
-**Status:** Phase 7 done: the whole back end of NewErp. Orders (list, details, status, manager, SMS, Nova Poshta waybills, tracking and reminders), login with roles and user management, the consumables stock with supplier orders, production (models, components, BOMs, cutting and sewing, sewn stock by order status) and manager bonuses. Next: the UI.
+**Status:** Phase 7 done: the whole back end of NewErp. Orders (list, details, status, manager, SMS, Nova Poshta waybills, tracking and reminders), login with roles and user management, the consumables stock with supplier orders, production (models, components, BOMs, cutting and sewing, sewn stock by order status) and manager bonuses. The existing Blazor UI runs on top of it (see Web UI).
 
 ## Stack
 
@@ -50,6 +50,23 @@ Open http://localhost:8080/health (should say `UP`) and http://localhost:8080/sw
 
 In IntelliJ IDEA: open the folder, wait for Maven import, then run `NewErpApplication` (in `newerp-api`).
 Set the working directory of the run configuration to the project folder so it finds `application-local.yml`.
+
+## Web UI
+
+The Java API keeps the same routes and JSON as the .NET one, so the existing Blazor UI (`NewErp.Web`) works with it.
+Publish it once from the .NET repository and point the Java app to its `wwwroot`:
+
+```
+dotnet publish src\NewErp.Web -c Release -o F:\PROJECTS\newerp-web
+```
+
+```yaml
+# application-local.yml
+newerp:
+  web-root: F:/PROJECTS/newerp-web/wwwroot
+```
+
+Then open http://localhost:8080/app/. Without `newerp.web-root` the app runs as an API only.
 
 ## Tests
 
