@@ -5,3 +5,22 @@ spring:
     url: jdbc:mysql://localhost:3306/newerp_dev
     username: newerp
     password: put_your_password_here
+
+# Nova Poshta. Without a key a stub is used; fake-documents: true lets it "create" test waybills (numbers start with 00).
+nova-poshta:
+  fake-documents: true
+#  api-key: your-key
+#  senders:
+#    - id: fop-main
+#      name: ФОП Іваненко
+#      api-key: sender-key
+#      counterparty-ref: ...
+#      contact-ref: ...
+#      phone: 380XXXXXXXXX
+#      is-default: true
+#  dropoff-points:
+#    - id: kyiv-1
+#      name: Київ, відділення №1
+#      city-ref: ...
+#      address-ref: ...
+#      is-default: true

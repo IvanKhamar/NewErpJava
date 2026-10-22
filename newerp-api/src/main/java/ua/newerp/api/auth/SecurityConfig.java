@@ -44,7 +44,7 @@ class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/auth/login").permitAll()
                         .requestMatchers("/health", "/error", "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**", "/app/**")
                         .permitAll()
-                        .requestMatchers("/orders/**").hasAnyRole(Roles.ADMIN, Roles.MANAGER)
+                        .requestMatchers("/orders/**", "/delivery/**").hasAnyRole(Roles.ADMIN, Roles.MANAGER)
                         .requestMatchers("/stock/**", "/production/**").hasAnyRole(Roles.ADMIN, Roles.STOREKEEPER)
                         .requestMatchers("/staff/bonuses", "/users/**").hasRole(Roles.ADMIN)
                         // Everything else needs a login, so a new endpoint cannot stay open by accident.

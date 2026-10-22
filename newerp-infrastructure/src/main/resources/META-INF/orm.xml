@@ -234,6 +234,27 @@
         </attributes>
     </entity>
 
+    <!-- ═══ Delivery: the old site's Nova Poshta waybills ═══ -->
+
+    <entity class="ua.newerp.domain.delivery.ShipmentDocument">
+        <table name="dd_novaposhta_document"/>
+        <attributes>
+            <id name="id"><generated-value strategy="IDENTITY"/></id>
+            <basic name="orderId"/>
+            <basic name="carrier"/>
+            <basic name="ref"/>
+            <basic name="number"/>
+            <basic name="cost"><column name="cost" precision="15" scale="4"/></basic>
+            <basic name="status"/>
+            <basic name="statusCode"/>
+            <basic name="recipientAddress"/>
+            <basic name="redelivery"/>
+            <basic name="dateCreated"/>
+            <basic name="dateScheduled"/>
+            <basic name="datePayedKeeping"/>
+        </attributes>
+    </entity>
+
     <!-- Embeddables go after all entities: the XML schema fixes the order of elements. -->
     <embeddable class="ua.newerp.domain.production.ProductionProductLink">
         <attributes>
