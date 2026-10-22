@@ -13,11 +13,20 @@
     <artifactId>newerp-application</artifactId>
     <name>NewErp Application</name>
 
-    <!-- Use cases and the interfaces they need (repositories, clients). -->
+    <!-- Use cases and the interfaces they need (repositories, clients).
+         spring-context + spring-tx only for @Service and @Transactional, like AddApplication() in .NET. -->
     <dependencies>
         <dependency>
             <groupId>ua.newerp</groupId>
             <artifactId>newerp-domain</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-context</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-tx</artifactId>
         </dependency>
     </dependencies>
 </project>
