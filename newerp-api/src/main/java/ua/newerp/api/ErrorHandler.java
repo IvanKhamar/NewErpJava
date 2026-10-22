@@ -1,21 +1,27 @@
 package ua.newerp.api;
 
 import org.springframework.dao.OptimisticLockingFailureException;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
+import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
 import ua.newerp.application.common.NotFoundException;
 import ua.newerp.domain.common.DomainException;
 
 /**
- * Turns business exceptions into clear HTTP responses in the ProblemDetails format (RFC 9457).
- * Same mapping as ErrorHandler in the .NET version. Anything else stays a 500.
+ * Turns exceptions into clear HTTP responses in the ProblemDetails format (RFC 9457).
+ * Same mapping as ErrorHandler in the .NET version. The base class already answers Spring's own errors
+ * (unknown route, wrong method, bad parameter) with ProblemDetails; anything else stays a 500.
  */
 @RestControllerAdvice
-class ErrorHandler {
+class ErrorHandler extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler
     ProblemDetail notFound(NotFoundException e) {
@@ -33,10 +39,11 @@ class ErrorHandler {
     }
 
     // The request body could not be read (broken JSON, wrong field type). A client error, not a server one.
-    @ExceptionHandler
-    ProblemDetail unreadableBody(HttpMessageNotReadableException e) {
-        return problem(HttpStatus.BAD_REQUEST, "Некоректний запит",
-                "Не вдалося прочитати тіло запиту: перевірте, що це правильний JSON у кодуванні UTF-8.");
+    @Override
+    protected ResponseEntity<Object> handleHttpMessageNotReadable(HttpMessageNotReadableException e, HttpHeaders headers,
+            HttpStatusCode status, WebRequest request) {
+        return ResponseEntity.badRequest().body(problem(HttpStatus.BAD_REQUEST, "Некоректний запит",
+                "Не вдалося прочитати тіло запиту: перевірте, що це правильний JSON у кодуванні UTF-8."));
     }
 
     private static ProblemDetail problem(HttpStatus status, String title, String detail) {

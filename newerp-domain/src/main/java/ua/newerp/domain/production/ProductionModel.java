@@ -51,10 +51,10 @@ public class ProductionModel {
     private int minTotal;
     private int sortOrder;
     private boolean active = true;
-    private final List<ProductionSize> sizes = new ArrayList<>();
-    private final List<ProductionProductLink> productLinks = new ArrayList<>();
-    private final List<ProductionCategoryLink> categoryLinks = new ArrayList<>();
-    private final List<SewnBomLine> sewnBom = new ArrayList<>();
+    private List<ProductionSize> sizes = new ArrayList<>();
+    private List<ProductionProductLink> productLinks = new ArrayList<>();
+    private List<ProductionCategoryLink> categoryLinks = new ArrayList<>();
+    private List<SewnBomLine> sewnBom = new ArrayList<>();
 
     protected ProductionModel() {
     }

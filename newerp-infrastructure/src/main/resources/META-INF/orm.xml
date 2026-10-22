@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    JPA mapping of the domain classes to the tables, in XML instead of annotations, so the domain stays plain Java.
+    This is the Java version of the EF Core Fluent API in ErpDbContext.<Module>.cs.
+    Fields are read and written directly (access FIELD), private ones too. Column names in camelCase map to
+    snake_case by themselves (sortOrder → sort_order); only the ones that differ are written out.
+-->
+<entity-mappings xmlns="http://www.hibernate.org/xsd/orm/mapping" version="7.0">
+
+    <persistence-unit-metadata>
+        <persistence-unit-defaults>
+            <access>FIELD</access>
+        </persistence-unit-defaults>
+    </persistence-unit-metadata>
+
+    <!-- ═══ Stock: tables of the old StockTrack module (dd_stock_*) ═══ -->
+
+    <entity class="ua.newerp.domain.stock.StockCategory">
+        <table name="dd_stock_categories"/>
+        <attributes>
+            <id name="id"><column name="category_id"/><generated-value strategy="IDENTITY"/></id>
+            <basic name="name"/>
+            <basic name="sortOrder"/>
+        </attributes>
+    </entity>
+
+    <entity class="ua.newerp.domain.stock.StockSupplier">
+        <table name="dd_stock_suppliers"/>
+        <attributes>
+            <id name="id"><column name="supplier_id"/><generated-value strategy="IDENTITY"/></id>
+            <basic name="name"/>
+            <basic name="phone"/>
+            <basic name="email"/>
+            <basic name="categories"/>
+            <basic name="notes"><column name="notes" column-definition="text"/></basic>
+        </attributes>
+    </entity>
+
+    <entity class="ua.newerp.domain.stock.StockItem">
+        <table name="dd_stock_items"/>
+        <attributes>
+            <id name="id"><column name="item_id"/><generated-value strategy="IDENTITY"/></id>
+            <basic name="categoryId"/>
+            <basic name="supplierId"/>
+            <basic name="name"/>
+            <basic name="unit"/>
+            <basic name="quantity"><column name="stock" precision="12" scale="3"/></basic>
+            <basic name="minQuantity"><column name="min_stock" precision="12" scale="3"/></basic>
+            <basic name="usedFor"/>
+            <basic name="price"><column name="price" precision="15" scale="4"/></basic>
+            <basic name="active"><column name="status"/></basic>
+        </attributes>
+    </entity>
+
+    <entity class="ua.newerp.domain.stock.StockMovement">
+        <table name="dd_stock_log"/>
+        <attributes>
+            <id name="id"><column name="log_id"/><generated-value strategy="IDENTITY"/></id>
+            <basic name="itemName"/>
+            <basic name="action"/>
+            <basic name="quantity"><column name="quantity" precision="12" scale="3"/></basic>
+            <basic name="stockBefore"><column name="stock_before" precision="12" scale="3"/></basic>
+            <basic name="stockAfter"><column name="stock_after" precision="12" scale="3"/></basic>
+            <basic name="comment"/>
+            <basic name="userId"/>
+            <basic name="username"/>
+            <basic name="createdAt"><column name="date_added"/></basic>
+            <many-to-one name="item" fetch="LAZY"><join-column name="item_id" nullable="false"/></many-to-one>
+        </attributes>
+    </entity>
+
+    <!-- Supplier orders: our own tables erp_purchase_order*; the old site has nothing like it. -->
+    <entity class="ua.newerp.domain.stock.PurchaseOrder">
+        <table name="erp_purchase_order"/>
+        <attributes>
+            <id name="id"><generated-value strategy="IDENTITY"/></id>
+            <basic name="supplierId"/>
+            <basic name="status"/>
+            <basic name="comment"/>
+            <basic name="createdByUserId"/>
+            <basic name="createdAt"/>
+            <basic name="orderedAt"/>
+            <basic name="closedAt"/>
+            <!-- Lines belong to the order: saved and deleted with it (cascade), removed lines are deleted (orphan-removal) -->
+            <one-to-many name="lines" orphan-removal="true">
+                <order-by>id</order-by>
+                <join-column name="order_id" nullable="false"/>
+                <cascade><cascade-all/></cascade>
+            </one-to-many>
+        </attributes>
+    </entity>
+
+    <entity class="ua.newerp.domain.stock.PurchaseOrderLine">
+        <table name="erp_purchase_order_line"/>
+        <attributes>
+            <id name="id"><generated-value strategy="IDENTITY"/></id>
+            <basic name="orderId"><column name="order_id" insertable="false" updatable="false"/></basic>
+            <basic name="itemId"/>
+            <basic name="quantity"><column name="quantity" precision="12" scale="3"/></basic>
+            <basic name="price"><column name="price" precision="15" scale="4"/></basic>
+            <basic name="receivedQuantity"><column name="received_quantity" precision="12" scale="3"/></basic>
+        </attributes>
+    </entity>
+
+</entity-mappings>

@@ -8,6 +8,10 @@ spring:
     url: ${NEWERP_DB_URL:jdbc:mysql://localhost:3306/newerp_dev}
     username: ${NEWERP_DB_USER:newerp}
     password: ${NEWERP_DB_PASSWORD:}
+  jackson:
+    deserialization:
+      # A missing number in JSON is 0, like in .NET (Jackson 3 would reject it by default)
+      fail-on-null-for-primitives: false
   jpa:
     # Database-first: Hibernate only checks that entities match the tables, it never changes the schema.
     hibernate:
@@ -15,8 +19,6 @@ spring:
     # No lazy loading while the JSON is written: queries stay inside services.
     open-in-view: false
   mvc:
-    problemdetails:
-      enabled: true
     # Query parameters like ?from=2026-10-01 are ISO dates
     format:
       date: iso
