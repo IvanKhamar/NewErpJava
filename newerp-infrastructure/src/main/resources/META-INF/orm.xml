@@ -219,6 +219,21 @@
         </attributes>
     </entity>
 
+    <!-- ═══ SMS: the old site's log dd_sms_log ═══ -->
+
+    <entity class="ua.newerp.domain.sms.SmsMessage">
+        <table name="dd_sms_log"/>
+        <attributes>
+            <id name="id"><column name="message_id"/><generated-value strategy="IDENTITY"/></id>
+            <basic name="orderId"/>
+            <basic name="preOrderId"/>
+            <basic name="phone"/>
+            <basic name="text"><column name="text" column-definition="text"/></basic>
+            <basic name="response"><column name="response" column-definition="text"/></basic>
+            <basic name="sentAt"><column name="date"/></basic>
+        </attributes>
+    </entity>
+
     <!-- Embeddables go after all entities: the XML schema fixes the order of elements. -->
     <embeddable class="ua.newerp.domain.production.ProductionProductLink">
         <attributes>
