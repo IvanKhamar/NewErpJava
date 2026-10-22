@@ -22,7 +22,7 @@ import ua.newerp.application.common.LookupItem;
 import ua.newerp.application.stock.AdjustStockRequest;
 import ua.newerp.application.stock.CreateStockCategoryRequest;
 import ua.newerp.application.stock.CreateStockSupplierRequest;
-import ua.newerp.application.stock.CreatedId;
+import ua.newerp.application.common.CreatedId;
 import ua.newerp.application.stock.ReorderReportDto;
 import ua.newerp.application.stock.ReorderService;
 import ua.newerp.application.stock.SaveStockItemRequest;
