@@ -98,3 +98,54 @@
 .tone-1 { background-color: var(--lumo-success-color-10pct); color: var(--lumo-success-text-color); }
 .tone-2 { background-color: var(--lumo-warning-color-10pct, #fff3cd); color: var(--lumo-warning-text-color, #8a6d00); }
 .tone-3 { background-color: var(--lumo-error-color-10pct); color: var(--lumo-error-text-color); }
+
+/* The "Разом" row at the end of a report grid */
+vaadin-grid::part(total-row) {
+    font-weight: 600;
+}
+
+/* Home page sales summary (DashboardPanel) */
+.dashboard-tiles {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+    gap: var(--lumo-space-m);
+    margin-bottom: var(--lumo-space-m);
+}
+
+.dashboard-tiles h4 {
+    margin: var(--lumo-space-xs) 0;
+}
+
+.dashboard-columns {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: var(--lumo-space-m);
+    margin-bottom: var(--lumo-space-l);
+}
+
+@media (max-width: 900px) {
+    .dashboard-columns {
+        grid-template-columns: 1fr;
+    }
+}
+
+.dashboard-chart {
+    display: flex;
+    align-items: flex-end;
+    gap: 2px;
+    height: 160px;
+}
+
+.dashboard-chart .slot {
+    flex: 1;
+    height: 100%;
+    display: flex;
+    align-items: flex-end;
+}
+
+.dashboard-chart .bar {
+    width: 100%;
+    min-height: 2px;
+    background: var(--lumo-primary-color);
+    border-radius: 2px 2px 0 0;
+}
