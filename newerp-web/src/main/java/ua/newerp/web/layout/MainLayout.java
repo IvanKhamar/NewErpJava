@@ -20,6 +20,7 @@ import ua.newerp.application.auth.CurrentUser;
 import ua.newerp.web.Access;
 import ua.newerp.web.auth.ChangePasswordView;
 import ua.newerp.web.auth.CurrentSession;
+import ua.newerp.web.catalog.PreOrdersView;
 import ua.newerp.web.catalog.ProductSortView;
 import ua.newerp.web.customers.CustomerListView;
 import ua.newerp.web.delivery.DeliveryView;
@@ -96,6 +97,7 @@ public class MainLayout extends AppLayout implements BeforeEnterObserver {
             nav.addItem(new SideNavItem("Доставка", DeliveryView.class, VaadinIcon.TRUCK.create()));
             nav.addItem(new SideNavItem("Звіти", ReportsView.class, VaadinIcon.CHART.create()));
             nav.addItem(new SideNavItem("Порядок товарів", ProductSortView.class, VaadinIcon.SORT.create()));
+            nav.addItem(new SideNavItem("Передзамовлення", PreOrdersView.class, VaadinIcon.CLOCK.create()));
             nav.addItem(new SideNavItem("Склади й пункти видачі", LocationsView.class, VaadinIcon.SHOP.create()));
             nav.addItem(new SideNavItem("Партнери", PartnerListView.class, VaadinIcon.CONNECT.create()));
         }
