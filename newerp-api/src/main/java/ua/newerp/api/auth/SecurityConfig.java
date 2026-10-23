@@ -17,7 +17,8 @@ import ua.newerp.application.auth.UserLoginStore;
 
 /**
  * Who may call what. The same rules as AuthSetup + Policies in the .NET version:
- * Orders → Admin, Manager; Stock → Admin, Storekeeper; Bonuses, Users → Admin; everything else needs a login.
+ * Orders, Finance (cash register, payments) → Admin, Manager; FinanceSetup (cashiers, warehouses, requisites) → Admin;
+ * Stock → Admin, Storekeeper; Bonuses, Users → Admin; everything else needs a login. The first matching rule wins.
  * <p>
  * After POST /auth/login the user is kept in the HTTP session; the browser sends the session cookie (newerp.auth)
  * with every request. Spring Security is a chain of servlet filters in front of the controllers.
@@ -44,7 +45,10 @@ class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/auth/login").permitAll()
                         .requestMatchers("/health", "/error", "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**", "/app/**")
                         .permitAll()
-                        .requestMatchers("/orders/**", "/delivery/**").hasAnyRole(Roles.ADMIN, Roles.MANAGER)
+                        .requestMatchers(HttpMethod.POST, "/cashbox/cashiers").hasRole(Roles.ADMIN)
+                        .requestMatchers(HttpMethod.PUT, "/cashbox/cashiers/*").hasRole(Roles.ADMIN)
+                        .requestMatchers("/cashbox/warehouses/**", "/cashbox/requisites/**").hasRole(Roles.ADMIN)
+                        .requestMatchers("/orders/**", "/delivery/**", "/cashbox/**", "/payments/**").hasAnyRole(Roles.ADMIN, Roles.MANAGER)
                         .requestMatchers("/stock/**", "/production/**").hasAnyRole(Roles.ADMIN, Roles.STOREKEEPER)
                         .requestMatchers("/staff/bonuses", "/users/**").hasRole(Roles.ADMIN)
                         // Everything else needs a login, so a new endpoint cannot stay open by accident.

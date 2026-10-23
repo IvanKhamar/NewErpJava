@@ -13,6 +13,16 @@
         </persistence-unit-defaults>
     </persistence-unit-metadata>
 
+    <!-- Mapped superclass: its fields are columns of each subclass table; it is not an entity (no table, no hierarchy). -->
+    <mapped-superclass class="ua.newerp.domain.cashbox.CashboxDirectoryEntry">
+        <attributes>
+            <id name="id"><generated-value strategy="IDENTITY"/></id>
+            <basic name="name"/>
+            <basic name="description"><column name="description" column-definition="text"/></basic>
+            <basic name="dateAdded"/>
+        </attributes>
+    </mapped-superclass>
+
     <!-- ═══ Stock: tables of the old StockTrack module (dd_stock_*) ═══ -->
 
     <entity class="ua.newerp.domain.stock.StockCategory">
@@ -252,6 +262,73 @@
             <basic name="dateCreated"/>
             <basic name="dateScheduled"/>
             <basic name="datePayedKeeping"/>
+        </attributes>
+    </entity>
+
+    <!-- ═══ Cashbox: the old site's Checkbox tables. Columns with cashier keys are deliberately not mapped. ═══ -->
+
+    <entity class="ua.newerp.domain.cashbox.Cashier">
+        <table name="dd_cashbox_user"/>
+        <attributes>
+            <id name="id"><column name="user_id"/><generated-value strategy="IDENTITY"/></id>
+            <basic name="name"/>
+            <basic name="description"><column name="description" column-definition="text"/></basic>
+            <basic name="paymentCode"/>
+            <basic name="autoCloseTime"/>
+            <basic name="warehouseId"/>
+            <basic name="requisitesId"/>
+            <basic name="active"><column name="status"/></basic>
+            <basic name="dateAdded"/>
+        </attributes>
+    </entity>
+
+    <entity class="ua.newerp.domain.cashbox.CashboxWarehouse">
+        <table name="dd_cashbox_warehouse"/>
+        <attribute-override name="id"><column name="warehouse_id"/></attribute-override>
+    </entity>
+
+    <entity class="ua.newerp.domain.cashbox.CashboxRequisites">
+        <table name="dd_cashbox_requisites"/>
+        <attribute-override name="id"><column name="requisites_id"/></attribute-override>
+    </entity>
+
+    <entity class="ua.newerp.domain.cashbox.WorkShift">
+        <table name="dd_cashbox_work_shift"/>
+        <attributes>
+            <id name="id"><column name="work_shift_id"/><generated-value strategy="IDENTITY"/></id>
+            <basic name="userId"/>
+            <basic name="cashierId"><column name="cashbox_user_id"/></basic>
+            <basic name="checkboxShiftId"/>
+            <basic name="dateAdded"/>
+            <basic name="dateStart"/>
+            <basic name="dateEnd"/>
+        </attributes>
+    </entity>
+
+    <entity class="ua.newerp.domain.cashbox.Cheque">
+        <table name="dd_cashbox_cheque"/>
+        <attributes>
+            <id name="id"><column name="cheque_id"/><generated-value strategy="IDENTITY"/></id>
+            <basic name="orderId"/>
+            <basic name="cashierId"><column name="cashbox_user_id"/></basic>
+            <basic name="warehouseId"><column name="cashbox_warehouse_id"/></basic>
+            <basic name="requisitesId"><column name="cashbox_requisites_id"/></basic>
+            <basic name="sum"><column name="sum" precision="15" scale="4"/></basic>
+            <basic name="checkboxId"/>
+            <basic name="workShiftId"><column name="cashbox_work_shift_id"/></basic>
+            <basic name="reportId"><column name="cashbox_report_id"/></basic>
+            <basic name="dateAdded"/>
+        </attributes>
+    </entity>
+
+    <entity class="ua.newerp.domain.cashbox.ZReport">
+        <table name="dd_cashbox_report"/>
+        <attributes>
+            <id name="id"><column name="report_id"/><generated-value strategy="IDENTITY"/></id>
+            <basic name="userId"/>
+            <basic name="cashierId"><column name="cashbox_user_id"/></basic>
+            <basic name="checkboxReportId"><column name="z_report_id"/></basic>
+            <basic name="dateAdded"/>
         </attributes>
     </entity>
 

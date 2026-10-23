@@ -57,7 +57,10 @@ public class ShipmentService {
         return new ShipmentFormDto(
                 order.firstName(), order.lastName(), order.telephone(), order.city(), city, order.warehouse(), warehouse,
                 order.total(),
-                CASH_ON_DELIVERY_PAYMENT_CODE.equals(order.paymentCode()) ? order.total() : BigDecimal.ZERO,
+                // Cash on delivery, as on the old site, is the total minus the prepayment.
+                CASH_ON_DELIVERY_PAYMENT_CODE.equals(order.paymentCode())
+                        ? order.total().subtract(order.prepayment()).max(BigDecimal.ZERO)
+                        : BigDecimal.ZERO,
                 client.senders(), client.dropoffPoints(), SeatPreset.ALL, client.canCreateDocuments(),
                 client.canCreateDocuments() && !client.isConfigured());
     }

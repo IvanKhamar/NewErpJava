@@ -25,6 +25,15 @@ nova-poshta:
 #      address-ref: ...
 #      is-default: true
 
+# Checkbox cash register. Without cashier keys a stub is used; fake-receipts: true lets it "fiscalize" test receipts.
+checkbox:
+  fake-receipts: true
+#  cashiers:
+#    - cashier-id: 1          # dd_cashbox_user.user_id
+#      login: cashier-login
+#      password: cashier-password
+#      license-key: cash-register-license-key
+
 # Web UI: the published Blazor app (dotnet publish src/NewErp.Web -c Release -o <folder>), see README.
 #newerp:
 #  web-root: F:/PROJECTS/newerp-web/wwwroot
