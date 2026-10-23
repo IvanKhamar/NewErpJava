@@ -1,5 +1,6 @@
 package ua.newerp.application.locations;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 
@@ -7,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import ua.newerp.application.common.NotFoundException;
+import ua.newerp.application.common.Spreadsheet;
 import ua.newerp.domain.common.DomainException;
 import ua.newerp.domain.locations.LocationImport;
 import ua.newerp.domain.locations.LocationImportRow;
@@ -21,9 +23,9 @@ public class LocationService {
     public static final int MAX_IMPORT_BYTES = 5 * 1024 * 1024;
 
     private final LocationStore store;
-    private final LocationSpreadsheet spreadsheet;
+    private final Spreadsheet spreadsheet;
 
-    public LocationService(LocationStore store, LocationSpreadsheet spreadsheet) {
+    public LocationService(LocationStore store, Spreadsheet spreadsheet) {
         this.store = store;
         this.spreadsheet = spreadsheet;
     }
@@ -56,7 +58,9 @@ public class LocationService {
 
     @Transactional(readOnly = true)
     public byte[] export() {
-        return spreadsheet.write(ShopLocation.COLUMNS, store.list(null));
+        return spreadsheet.write("Склади", ShopLocation.COLUMNS, store.list(null).stream()
+                .map(x -> Arrays.<Object>asList(x.id(), x.name(), x.description(), x.contact(), x.telephone(), x.city(), x.address(), x.type()))
+                .toList());
     }
 
     /** A row with the id of an existing record updates it, the rest are added (as the old import). With errors nothing is written. */
