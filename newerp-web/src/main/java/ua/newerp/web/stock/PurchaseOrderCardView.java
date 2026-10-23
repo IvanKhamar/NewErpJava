@@ -18,6 +18,7 @@ import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.component.select.Select;
 import com.vaadin.flow.component.textfield.BigDecimalField;
 import com.vaadin.flow.data.value.ValueChangeMode;
 import com.vaadin.flow.router.BeforeEnterEvent;
@@ -29,6 +30,8 @@ import com.vaadin.flow.router.RouterLink;
 import com.vaadin.flow.theme.lumo.LumoUtility;
 
 import jakarta.annotation.security.RolesAllowed;
+import ua.newerp.application.common.LookupItem;
+import ua.newerp.application.locations.LocationService;
 import ua.newerp.application.stock.PurchaseOrderDto;
 import ua.newerp.application.stock.PurchaseOrderLineDto;
 import ua.newerp.application.stock.PurchaseOrderLineRequest;
@@ -59,6 +62,8 @@ public class PurchaseOrderCardView extends VerticalLayout implements BeforeEnter
     final Button markOrdered = new Button("Надіслано постачальнику", VaadinIcon.PAPERPLANE.create());
     final Button receive = new Button("Прийняти на склад", VaadinIcon.INBOX.create());
     final Button cancel = new Button("Скасувати замовлення");
+    /** The warehouse the delivery goes to; shown only when there are warehouses. */
+    final Select<LookupItem> place;
     final List<LineRow> rows = new ArrayList<>();
 
     private final PurchaseOrderRepository repository;
@@ -67,7 +72,9 @@ public class PurchaseOrderCardView extends VerticalLayout implements BeforeEnter
     private int id;
     private PurchaseOrderDto order;
 
-    public PurchaseOrderCardView(PurchaseOrderRepository repository, PurchaseOrderService service, CurrentSession session) {
+    public PurchaseOrderCardView(PurchaseOrderRepository repository, PurchaseOrderService service, LocationService warehouses,
+            CurrentSession session) {
+        place = Places.select("Куди", warehouses);
         this.repository = repository;
         this.service = service;
         this.session = session;
@@ -126,7 +133,8 @@ public class PurchaseOrderCardView extends VerticalLayout implements BeforeEnter
             buttons.add(saveLines, markOrdered);
         }
         if (isOrdered()) {
-            buttons.add(receive);
+            buttons.add(place, receive);
+            buttons.setDefaultVerticalComponentAlignment(FlexComponent.Alignment.BASELINE);
         }
         if (isDraft() || isOrdered()) {
             buttons.add(cancel);
@@ -177,7 +185,8 @@ public class PurchaseOrderCardView extends VerticalLayout implements BeforeEnter
         }
         var user = session.user().orElseThrow();
         Actions.run("Прийнято на склад.", () -> {
-            service.receive(id, new ReceivePurchaseOrderRequest(receipts), user.userId(), user.username());
+            service.receive(id, new ReceivePurchaseOrderRequest(receipts, Places.warehouseId(place)), user.userId(),
+                    user.username());
             open(id);
         });
     }

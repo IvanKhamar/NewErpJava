@@ -12,12 +12,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import ua.newerp.application.common.NotFoundException;
+import ua.newerp.application.locations.LocationStore;
 import ua.newerp.domain.common.DomainException;
 import ua.newerp.domain.stock.PurchaseOrder;
 import ua.newerp.domain.stock.PurchaseOrder.LineInput;
 import ua.newerp.domain.stock.PurchaseOrder.Receipt;
 import ua.newerp.domain.stock.StockItem;
 import ua.newerp.domain.stock.StockMovement;
+import ua.newerp.domain.stock.StockPlacement;
 
 /** Supplier orders: create (by hand or from the "what to reorder" report), send, receive. */
 @Service
@@ -27,12 +29,17 @@ public class PurchaseOrderService {
     private final PurchaseOrderRepository orders;
     private final StockRepository stock;
     private final ReorderService reorder;
+    private final StockLocationRepository locations;
+    private final LocationStore warehouses;
     private final Clock clock;
 
-    public PurchaseOrderService(PurchaseOrderRepository orders, StockRepository stock, ReorderService reorder, Clock clock) {
+    public PurchaseOrderService(PurchaseOrderRepository orders, StockRepository stock, ReorderService reorder,
+            StockLocationRepository locations, LocationStore warehouses, Clock clock) {
         this.orders = orders;
         this.stock = stock;
         this.reorder = reorder;
+        this.locations = locations;
+        this.warehouses = warehouses;
         this.clock = clock;
     }
 
@@ -79,8 +86,18 @@ public class PurchaseOrderService {
 
         List<Receipt> receipts = request.lines() == null ? List.of()
                 : request.lines().stream().map(l -> new Receipt(l.lineId(), l.quantity())).toList();
+        Integer warehouseId = request.warehouseId();
+        if (warehouseId != null && warehouses.get(warehouseId).isEmpty()) {
+            throw new NotFoundException("Склад " + warehouseId + " не знайдено.");
+        }
         for (StockMovement movement : order.receive(receipts, items, userId, username, now())) {
             orders.add(movement);
+            if (warehouseId != null) {
+                StockItem item = movement.getItem();
+                var placement = new StockPlacement(item, locations.findBalances(item.getId()));
+                placement.receivedAt(warehouseId, movement.getDelta());
+                placement.created().forEach(locations::add);
+            }
         }
     }
 

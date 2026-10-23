@@ -2,12 +2,16 @@ package ua.newerp.api.stock;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.nio.charset.StandardCharsets;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpSession;
 import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
+
+import com.jayway.jsonpath.JsonPath;
 
 import ua.newerp.IntegrationTest;
 
@@ -91,6 +95,46 @@ class StockLocationTest extends IntegrationTest {
                 .bodyJson().extractingPath("$.detail").asString().contains("перемістіть");
         assertThat(mvc.delete().uri("/locations/902").session(login("admin"))).hasStatus(204);
         assertThat(mvc.get().uri("/stock/by-warehouse").session(login("olena"))).hasStatus(403);
+    }
+
+    @Test
+    void aDeliveryCanGoStraightToAWarehouse() throws Exception {
+        MvcTestResult created = post("/stock/purchase-orders", "{\"supplierId\":1,\"lines\":[{\"itemId\":1,\"quantity\":10,\"price\":200}]}");
+        int id = JsonPath.read(created.getResponse().getContentAsString(StandardCharsets.UTF_8), "$.id");
+        assertThat(mvc.post().uri("/stock/purchase-orders/" + id + "/ordered").session(keeper)).hasStatus(204);
+        int lineId = JsonPath.read(mvc.get().uri("/stock/purchase-orders/" + id).session(keeper).exchange().getResponse()
+                .getContentAsString(StandardCharsets.UTF_8), "$.lines[0].id");
+
+        assertThat(post("/stock/purchase-orders/" + id + "/receive", "{\"lines\":[{\"lineId\":" + lineId + ",\"quantity\":4}],"
+                + "\"warehouseId\":999}")).hasStatus(404);
+        assertThat(post("/stock/purchase-orders/" + id + "/receive", "{\"lines\":[{\"lineId\":" + lineId + ",\"quantity\":4}],"
+                + "\"warehouseId\":901}")).hasStatus(204);
+
+        // Льон: 3 before + 4 delivered to the workshop; the main stock keeps its 3
+        assertThat(mvc.get().uri("/stock/items/1/places").session(keeper)).bodyJson().isLenientlyEqualTo("""
+                {"total":7.000,"places":[{"warehouseId":null,"quantity":3.000},{"warehouseId":901,"quantity":4.000}]}
+                """);
+    }
+
+    @Test
+    void stocktakingOfAWarehouseCountsOnlyWhatLiesThere() {
+        post("/stock/items/2/transfers", "{\"toWarehouseId\":901,\"quantity\":20}");
+
+        // the workshop has 20 m of Бавовна in the books, 17 were counted; Льон was not there at all, 1 m was found
+        assertThat(post("/stock/stocktaking", """
+                {"warehouseId":901,"comment":"цех","counts":[{"itemId":2,"actual":17},{"itemId":1,"actual":1}]}
+                """)).hasStatusOk().bodyJson().isLenientlyEqualTo("{\"counted\":2,\"changed\":2,\"value\":-160.00}");
+
+        assertThat(mvc.get().uri("/stock/items/2/places").session(keeper)).bodyJson().isLenientlyEqualTo("""
+                {"total":47.000,"places":[{"warehouseId":null,"quantity":30.000},{"warehouseId":901,"quantity":17.000}]}
+                """);
+        assertThat(mvc.get().uri("/stock/items/1/places").session(keeper)).bodyJson().isLenientlyEqualTo("""
+                {"total":4.000,"places":[{"warehouseId":null,"quantity":3.000},{"warehouseId":901,"quantity":1.000}]}
+                """);
+        // the main stock is counted without a warehouse: 30 m of Бавовна there, not the 47 in total
+        assertThat(post("/stock/stocktaking", "{\"counts\":[{\"itemId\":2,\"actual\":30}]}")).bodyJson()
+                .extractingPath("$.changed").isEqualTo(0);
+        assertThat(post("/stock/stocktaking", "{\"warehouseId\":999,\"counts\":[{\"itemId\":2,\"actual\":1}]}")).hasStatus(404);
     }
 
     private MvcTestResult post(String uri, String json) {

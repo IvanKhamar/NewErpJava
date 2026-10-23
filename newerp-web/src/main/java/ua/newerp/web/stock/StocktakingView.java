@@ -39,6 +39,7 @@ import com.vaadin.flow.theme.lumo.LumoUtility;
 
 import jakarta.annotation.security.RolesAllowed;
 import ua.newerp.application.common.LookupItem;
+import ua.newerp.application.locations.LocationService;
 import ua.newerp.application.stock.ApplyStocktakingRequest;
 import ua.newerp.application.stock.StockItemDto;
 import ua.newerp.application.stock.StockItemFilter;
@@ -66,6 +67,8 @@ public class StocktakingView extends VerticalLayout {
     static final String XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
     final Select<LookupItem> category = new Select<>();
+    /** Where was counted: the main stock or a warehouse; shown only when there are warehouses. */
+    final Select<LookupItem> place;
     final Grid<Row> grid = new Grid<>();
     final TextField comment = new TextField("Коментар");
     final Button apply = new Button("Провести інвентаризацію");
@@ -76,7 +79,7 @@ public class StocktakingView extends VerticalLayout {
     private final CurrentSession session;
     List<Row> rows = List.of();
 
-    public StocktakingView(StockRepository repository, StocktakingService service, CurrentSession session) {
+    public StocktakingView(StockRepository repository, StocktakingService service, LocationService warehouses, CurrentSession session) {
         this.repository = repository;
         this.service = service;
         this.session = session;
@@ -90,8 +93,10 @@ public class StocktakingView extends VerticalLayout {
         category.setItemLabelGenerator(c -> c == null ? "Усі" : c.name());
         category.setEmptySelectionAllowed(true);
         category.addValueChangeListener(e -> load());
+        place = Places.select("Що рахуємо", warehouses);
+        place.addValueChangeListener(e -> load());
         var sheet = new Anchor(DownloadHandler.fromInputStream(e -> {
-            byte[] file = service.sheet(categoryId());
+            byte[] file = service.sheet(categoryId(), warehouseId());
             return new DownloadResponse(new ByteArrayInputStream(file), "inventaryzatsiia-" + LocalDate.now() + ".xlsx", XLSX,
                     file.length);
         }), "");
@@ -102,12 +107,12 @@ public class StocktakingView extends VerticalLayout {
         upload.setUploadButton(new Button("Завантажити заповнену", VaadinIcon.UPLOAD.create()));
         upload.setDropAllowed(false);
         upload.addFileRejectedListener(e -> Messages.error("Файл більший за 5 МБ або не .xlsx."));
-        var toolbar = new HorizontalLayout(category, sheet, upload);
+        var toolbar = new HorizontalLayout(place, category, sheet, upload);
         toolbar.setDefaultVerticalComponentAlignment(FlexComponent.Alignment.BASELINE);
 
         grid.addColumn(r -> r.item.name()).setHeader("Назва").setFlexGrow(1);
         grid.addColumn(r -> r.item.categoryName()).setHeader("Категорія").setAutoWidth(true);
-        grid.addColumn(r -> Fmt.qty(r.item.quantity()) + " " + r.item.unit()).setHeader("За обліком").setTextAlign(ColumnTextAlign.END)
+        grid.addColumn(r -> Fmt.qty(r.booked) + " " + r.item.unit()).setHeader("За обліком").setTextAlign(ColumnTextAlign.END)
                 .setAutoWidth(true);
         grid.addComponentColumn(r -> r.actual).setHeader("Фактично").setAutoWidth(true);
         grid.addComponentColumn(r -> r.difference).setHeader("Різниця").setTextAlign(ColumnTextAlign.END).setAutoWidth(true);
@@ -129,7 +134,7 @@ public class StocktakingView extends VerticalLayout {
 
     void uploadSheet(byte[] data) {
         Actions.run(null, () -> {
-            StocktakingPreviewDto preview = service.preview(data);
+            StocktakingPreviewDto preview = service.preview(data, warehouseId());
             upload.clearFileList();
             showErrors(preview.errors());
             if (!preview.errors().isEmpty()) {
@@ -159,7 +164,8 @@ public class StocktakingView extends VerticalLayout {
         }
         var user = session.user().orElseThrow();
         Actions.run(null, () -> {
-            StocktakingResult result = service.apply(new ApplyStocktakingRequest(counts, comment.getValue()), user.userId(), user.username());
+            StocktakingResult result = service.apply(new ApplyStocktakingRequest(counts, comment.getValue(), warehouseId()),
+                    user.userId(), user.username());
             Messages.success("Проведено. Пораховано позицій: " + result.counted() + ", змінено залишків: " + result.changed()
                     + (result.value().signum() == 0 ? "." : ", різниця на " + Fmt.money(result.value()) + "."));
             comment.clear();
@@ -167,12 +173,19 @@ public class StocktakingView extends VerticalLayout {
         });
     }
 
+    private Integer warehouseId() {
+        return Places.warehouseId(place);
+    }
+
     private Integer categoryId() {
         return category.getValue() == null ? null : category.getValue().id();
     }
 
     private void load() {
-        rows = repository.listItems(new StockItemFilter(categoryId(), false)).stream().map(Row::new).toList();
+        Map<Integer, BigDecimal> booked = service.booked(warehouseId());
+        rows = repository.listItems(new StockItemFilter(categoryId(), false)).stream()
+                .map(i -> new Row(i, booked.getOrDefault(i.id(), BigDecimal.ZERO)))
+                .toList();
         grid.setItems(rows);
     }
 
@@ -191,11 +204,14 @@ public class StocktakingView extends VerticalLayout {
     /** One item with its count being typed in; the difference updates as you type. */
     static final class Row {
         final StockItemDto item;
+        /** What the books say lies at the counted place. */
+        final BigDecimal booked;
         final BigDecimalField actual = new BigDecimalField();
         final Span difference = new Span();
 
-        Row(StockItemDto item) {
+        Row(StockItemDto item, BigDecimal booked) {
             this.item = item;
+            this.booked = booked;
             actual.setWidth("8rem");
             actual.setLocale(Fmt.UK);
             actual.setSuffixComponent(new Span(item.unit()));
@@ -210,7 +226,7 @@ public class StocktakingView extends VerticalLayout {
                 difference.setText("");
                 return;
             }
-            BigDecimal delta = value.subtract(item.quantity());
+            BigDecimal delta = value.subtract(booked);
             difference.setText(delta.signum() == 0 ? "збігається" : (delta.signum() > 0 ? "+" : "") + Fmt.qty(delta));
             if (delta.signum() != 0) {
                 difference.addClassName(delta.signum() < 0 ? LumoUtility.TextColor.ERROR : LumoUtility.TextColor.SUCCESS);
