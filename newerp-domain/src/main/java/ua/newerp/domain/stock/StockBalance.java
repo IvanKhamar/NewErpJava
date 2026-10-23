@@ -1,6 +1,7 @@
 package ua.newerp.domain.stock;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 
 /**
  * How much of a consumable lies at one warehouse (table erp_stock_location; the warehouses are dd_warehouse).
@@ -22,7 +23,8 @@ public class StockBalance {
     }
 
     void add(BigDecimal delta) {
-        quantity = quantity.add(delta);
+        // the column keeps 3 decimals; the same scale here, so a new balance reads like one loaded from the database
+        quantity = quantity.add(delta).setScale(3, RoundingMode.HALF_UP);
     }
 
     public Integer getId() {

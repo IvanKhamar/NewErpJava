@@ -21,7 +21,14 @@ import com.vaadin.browserless.ViewPackages;
 import com.vaadin.flow.component.UI;
 
 import ua.newerp.application.auth.CurrentUser;
+import ua.newerp.application.locations.LocationDto;
+import ua.newerp.application.locations.LocationService;
 import ua.newerp.application.production.ComponentCountRequest;
+import ua.newerp.application.production.ProductionLocationService;
+import ua.newerp.application.production.SewnTransferRequest;
+import ua.newerp.application.production.SizePlacesDto;
+import ua.newerp.application.stock.PlaceDto;
+import ua.newerp.application.stock.StockLocationService;
 import ua.newerp.application.production.ComponentDto;
 import ua.newerp.application.production.ProductionLogFilter;
 import ua.newerp.application.production.ProductionModelDto;
@@ -64,6 +71,8 @@ class ProductionViewsTest extends BrowserlessTest {
     final ProductionService service = mock(ProductionService.class);
     final StockRepository stock = mock(StockRepository.class);
     final CurrentSession session = mock(CurrentSession.class);
+    final ProductionLocationService locations = mock(ProductionLocationService.class);
+    final LocationService warehouses = mock(LocationService.class);
     final ProductionModelDto dress = new ProductionModelDto(4, "Сукня льняна", ProductionModel.CLOTHING, 30, 0,
             List.of(new ProductionSizeDto(41, "S", new BigDecimal("40"), new BigDecimal("6"), new BigDecimal("10"), null),
                     new ProductionSizeDto(42, "M", new BigDecimal("60"), new BigDecimal("4"), new BigDecimal("5"), null)),
@@ -99,7 +108,7 @@ class ProductionViewsTest extends BrowserlessTest {
     void sewnOperationSendsOnlySizesWithAQuantityAndShowsWarnings() {
         when(service.record(any(Integer.class), any(), any(), any(Integer.class), any())).thenReturn(
                 new ProductionOperationResult(List.of(), List.of("Бракує льону: 1,5 м")));
-        var view = new ModelCardView(repository, service, stock, session);
+        var view = new ModelCardView(repository, service, stock, locations, warehouses, session);
         UI.getCurrent().add(view);
         view.open(4);
         roundTrip();
@@ -118,7 +127,7 @@ class ProductionViewsTest extends BrowserlessTest {
 
     @Test
     void emptyOperationIsNotSent() {
-        var view = new ModelCardView(repository, service, stock, session);
+        var view = new ModelCardView(repository, service, stock, locations, warehouses, session);
         UI.getCurrent().add(view);
         view.open(4);
         roundTrip();
@@ -132,7 +141,7 @@ class ProductionViewsTest extends BrowserlessTest {
     void stocktakingSendsOnlyTheCountsThatDifferFromTheBooks() {
         when(service.recount(any(Integer.class), any(ProductionStocktakingRequest.class), any(Integer.class), any(String.class)))
                 .thenReturn(new ProductionStocktakingResult(List.of(), List.of(), 1));
-        var view = new ModelCardView(repository, service, stock, session);
+        var view = new ModelCardView(repository, service, stock, locations, warehouses, session);
         UI.getCurrent().add(view);
         view.open(4);
         roundTrip();
@@ -149,6 +158,70 @@ class ProductionViewsTest extends BrowserlessTest {
 
         verify(service).recount(4, new ProductionStocktakingRequest(List.of(new SizeCountRequest(41, null, new BigDecimal("9"))),
                 List.of(new ComponentCountRequest(7, 42, BigDecimal.ONE)), ""), 3, "taras");
+    }
+
+    /** A workshop warehouse "Цех" (901) holds 4 of the 10 sewn S. */
+    private ModelCardView cardWithAWarehouse() {
+        when(warehouses.list(null)).thenReturn(List.of(new LocationDto(901, "Цех", "", "", "", "", "", "")));
+        when(locations.get(4)).thenReturn(List.of(
+                new SizePlacesDto(41, "S", new BigDecimal("10"), List.of(new PlaceDto(null, StockLocationService.MAIN_NAME,
+                        new BigDecimal("6")), new PlaceDto(901, "Цех", new BigDecimal("4")))),
+                new SizePlacesDto(42, "M", new BigDecimal("5"), List.of(new PlaceDto(null, StockLocationService.MAIN_NAME,
+                        new BigDecimal("5"))))));
+        var view = new ModelCardView(repository, service, stock, locations, warehouses, session);
+        UI.getCurrent().add(view);
+        view.open(4);
+        roundTrip();
+        return view;
+    }
+
+    @Test
+    void sewnPiecesCanComeToAWarehouse() {
+        when(service.record(any(Integer.class), any(), any(), any(Integer.class), any())).thenReturn(
+                new ProductionOperationResult(List.of(), List.of()));
+        var panel = cardWithAWarehouse().operations;
+        assertThat(panel.place.isVisible()).isFalse(); // cutting is not placed
+        test(panel.operation).selectItem("Пошито");
+        test(panel.place).selectItem("Цех");
+        test(panel.quantities.get(41)).setValue(new BigDecimal("2"));
+        test(panel.submit).click();
+
+        verify(service).record(4, ProductionOperation.SEWN,
+                new ProductionOperationRequest(List.of(new SizeQuantity(41, new BigDecimal("2"))), null, 901), 3, "taras");
+    }
+
+    @Test
+    void sewnPiecesMoveBetweenWarehouses() {
+        var view = cardWithAWarehouse();
+        view.tabs.setSelectedIndex(1);
+        var panel = find(SewnPlacesPanel.class).single();
+        assertThat(test(panel.grid).getCellText(0, 3)).isEqualTo("4");
+
+        test(panel.from).selectItem("Цех");
+        test(panel.to).selectItem(StockLocationService.MAIN_NAME);
+        test(panel.quantity).setValue(new BigDecimal("3"));
+        test(panel.move).click();
+
+        verify(locations).transfer(4, new SewnTransferRequest(41, 901, null, new BigDecimal("3"), null), 3, "taras");
+    }
+
+    @Test
+    void stocktakingAtAWarehouseCountsOnlyTheSewnPiecesThere() {
+        when(service.recount(any(Integer.class), any(ProductionStocktakingRequest.class), any(Integer.class), any(String.class)))
+                .thenReturn(new ProductionStocktakingResult(List.of(), List.of(), 0));
+        var view = cardWithAWarehouse();
+        test(view.stocktaking).click();
+        roundTrip();
+        var dialog = find(ModelStocktakingDialog.class).single();
+        assertThat(dialog.sewn.get(41).getValue()).isEqualByComparingTo("6"); // the main stock: 10 sewn, 4 at the workshop
+
+        test(dialog.place).selectItem("Цех");
+        assertThat(dialog.sewn.get(41).getValue()).isEqualByComparingTo("4");
+        test(dialog.sewn.get(41)).setValue(new BigDecimal("3"));
+        test(dialog.save).click();
+
+        verify(service).recount(4, new ProductionStocktakingRequest(List.of(new SizeCountRequest(41, null, new BigDecimal("3"))),
+                List.of(), "", 901), 3, "taras");
     }
 
     @Test

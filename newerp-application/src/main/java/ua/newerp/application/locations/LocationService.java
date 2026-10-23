@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import ua.newerp.application.common.NotFoundException;
 import ua.newerp.application.common.Spreadsheet;
+import ua.newerp.application.production.SewnLocationRepository;
 import ua.newerp.application.stock.StockLocationRepository;
 import ua.newerp.domain.common.DomainException;
 import ua.newerp.domain.locations.LocationImport;
@@ -26,11 +27,13 @@ public class LocationService {
     private final LocationStore store;
     private final Spreadsheet spreadsheet;
     private final StockLocationRepository stock;
+    private final SewnLocationRepository sewn;
 
-    public LocationService(LocationStore store, Spreadsheet spreadsheet, StockLocationRepository stock) {
+    public LocationService(LocationStore store, Spreadsheet spreadsheet, StockLocationRepository stock, SewnLocationRepository sewn) {
         this.store = store;
         this.spreadsheet = spreadsheet;
         this.stock = stock;
+        this.sewn = sewn;
     }
 
     @Transactional(readOnly = true)
@@ -53,10 +56,10 @@ public class LocationService {
         }
     }
 
-    /** A warehouse that still holds consumables cannot go: they would fall back to the main stock unnoticed. */
+    /** A warehouse that still holds consumables or sewn pieces cannot go: they would fall back to the main stock unnoticed. */
     public void delete(int id) {
-        if (stock.holdsStock(id)) {
-            throw new DomainException("На цьому складі ще є розхідники. Спершу перемістіть їх на інший склад.");
+        if (stock.holdsStock(id) || sewn.holdsStock(id)) {
+            throw new DomainException("На цьому складі ще є розхідники або пошиті вироби. Спершу перемістіть їх на інший склад.");
         }
         if (!store.delete(id)) {
             throw notFound(id);

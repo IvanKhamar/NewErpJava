@@ -16,10 +16,13 @@ import com.vaadin.flow.component.html.UnorderedList;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.radiobutton.RadioButtonGroup;
+import com.vaadin.flow.component.select.Select;
 import com.vaadin.flow.component.textfield.BigDecimalField;
 import com.vaadin.flow.component.textfield.TextField;
 
 import ua.newerp.application.auth.CurrentUser;
+import ua.newerp.application.common.LookupItem;
+import ua.newerp.application.locations.LocationDto;
 import ua.newerp.application.production.ProductionModelDto;
 import ua.newerp.application.production.ProductionOperation;
 import ua.newerp.application.production.ProductionOperationRequest;
@@ -29,6 +32,7 @@ import ua.newerp.application.production.ProductionSizeDto;
 import ua.newerp.application.production.SizeQuantity;
 import ua.newerp.domain.production.ProductionModel;
 import ua.newerp.web.Fmt;
+import ua.newerp.web.stock.Places;
 import ua.newerp.web.ui.Actions;
 import ua.newerp.web.ui.Messages;
 
@@ -42,6 +46,8 @@ class OperationPanel extends Div {
     final Map<Integer, BigDecimalField> quantities = new LinkedHashMap<>();
     final TextField comment = new TextField("Коментар (необов'язково)");
     final Button submit = new Button();
+    /** Where the pieces come to or leave from; only for sewn and shipped, and only when there are warehouses. */
+    final Select<LookupItem> place;
 
     private final Paragraph hint = new Paragraph();
     private final Div warnings = new Div();
@@ -51,7 +57,8 @@ class OperationPanel extends Div {
     private final Runnable onDone;
     private List<String> lastWarnings = List.of();
 
-    OperationPanel(ProductionService service, ProductionModelDto model, CurrentUser user, Runnable onDone) {
+    OperationPanel(ProductionService service, ProductionModelDto model, List<LocationDto> warehouses, CurrentUser user,
+            Runnable onDone) {
         this.service = service;
         this.model = model;
         this.user = user;
@@ -61,9 +68,13 @@ class OperationPanel extends Div {
 
         operation.setItems(ProductionUi.operationsFor(model.type()));
         operation.setItemLabelGenerator(o -> ProductionUi.operationLabel(o, model.type()));
+        place = Places.select("Склад", warehouses);
         operation.addValueChangeListener(e -> {
             hint.setText(hint(e.getValue()));
             submit.setText(ProductionUi.operationLabel(e.getValue(), model.type()));
+            boolean placed = e.getValue() == ProductionOperation.SEWN || e.getValue() == ProductionOperation.SHIP;
+            place.setVisible(placed && !warehouses.isEmpty());
+            place.setLabel(e.getValue() == ProductionOperation.SHIP ? "Звідки" : "Куди");
         });
         hint.addClassName("secondary");
 
@@ -88,7 +99,7 @@ class OperationPanel extends Div {
         comment.setMinWidth("16rem");
         submit.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         submit.addClickListener(e -> submit());
-        var actions = new HorizontalLayout(comment, submit);
+        var actions = new HorizontalLayout(place, comment, submit);
         actions.setDefaultVerticalComponentAlignment(FlexComponent.Alignment.BASELINE);
 
         operation.setValue(ProductionUi.operationsFor(model.type()).getFirst());
@@ -106,8 +117,9 @@ class OperationPanel extends Div {
         }
         ProductionOperation selected = operation.getValue();
         String text = comment.getValue().isBlank() ? null : comment.getValue();
+        Integer warehouseId = place.isVisible() ? Places.warehouseId(place) : null;
         Actions.run(ProductionUi.operationLabel(selected, model.type()) + ": збережено.", () -> {
-            ProductionOperationResult result = service.record(model.id(), selected, new ProductionOperationRequest(rows, text),
+            ProductionOperationResult result = service.record(model.id(), selected, new ProductionOperationRequest(rows, text, warehouseId),
                     user.userId(), user.username());
             lastWarnings = result.warnings();
             onDone.run();

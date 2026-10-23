@@ -30,6 +30,8 @@ import ua.newerp.application.auth.CurrentUser;
 import ua.newerp.application.common.LookupItem;
 import ua.newerp.application.locations.LocationDto;
 import ua.newerp.application.locations.LocationService;
+import ua.newerp.application.production.ProductionLocationService;
+import ua.newerp.application.production.SewnByWarehouseDto;
 import ua.newerp.application.stock.AdjustStockRequest;
 import ua.newerp.application.stock.ApplyStocktakingRequest;
 import ua.newerp.application.stock.CategoryValueDto;
@@ -65,6 +67,7 @@ class StockViewsTest extends BrowserlessTest {
     final CurrentSession session = mock(CurrentSession.class);
     final StockLocationService locations = mock(StockLocationService.class);
     final LocationService warehouses = mock(LocationService.class);
+    final ProductionLocationService production = mock(ProductionLocationService.class);
     final StockItemDto linen = new StockItemDto(1, "Льон бежевий", "м", 1, "Тканини", null, null, new BigDecimal("4.5"),
             new BigDecimal("10"), true, "Сукні", new BigDecimal("320"));
     final StockItemDto thread = new StockItemDto(2, "Нитки білі", "шт", 2, "Фурнітура", null, null, new BigDecimal("40"),
@@ -278,10 +281,16 @@ class StockViewsTest extends BrowserlessTest {
                         new StockByWarehouseDto.Place(901, "Цех", new BigDecimal("480"))),
                 List.of(new StockByWarehouseDto.Row(1, "Льон бежевий", "м", "Тканини", new BigDecimal("4.5"),
                         List.of(new BigDecimal("3"), new BigDecimal("1.5"))))));
-        var view = new StockByWarehouseView(locations);
+        when(production.byWarehouse()).thenReturn(new SewnByWarehouseDto(
+                List.of(new SewnByWarehouseDto.Place(null, StockLocationService.MAIN_NAME), new SewnByWarehouseDto.Place(901, "Цех")),
+                List.of(new SewnByWarehouseDto.Row(4, "Сукня льняна", 41, "S", new BigDecimal("10"),
+                        List.of(new BigDecimal("6"), new BigDecimal("4"))))));
+        var view = new StockByWarehouseView(locations, production);
         UI.getCurrent().add(view);
 
         assertThat(view.grid.getColumns()).hasSize(5);
         assertThat(test(view.grid).getCellText(0, 4)).isEqualTo("1,5");
+        assertThat(view.sewnGrid.getColumns()).hasSize(5);
+        assertThat(test(view.sewnGrid).getCellText(0, 4)).isEqualTo("4");
     }
 }
