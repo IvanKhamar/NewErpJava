@@ -125,13 +125,13 @@ class JpaShipmentRepository implements ShipmentRepository {
                        IF(shipping_lastname <> '', shipping_lastname, lastname) AS last_name,
                        telephone, shipping_city,
                        IF(shipping_address_2 <> '', shipping_address_2, shipping_address_1) AS warehouse,
-                       total, payment_code
+                       total, payment_code, prepayment
                 FROM dd_order WHERE order_id = :id
                 """)
                 .param("id", orderId)
                 .query((rs, n) -> new OrderShippingInfo(rs.getString("first_name"), rs.getString("last_name"),
                         rs.getString("telephone"), rs.getString("shipping_city"), rs.getString("warehouse"),
-                        rs.getBigDecimal("total"), rs.getString("payment_code")))
+                        rs.getBigDecimal("total"), rs.getString("payment_code"), rs.getBigDecimal("prepayment")))
                 .optional();
     }
 

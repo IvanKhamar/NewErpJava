@@ -56,6 +56,10 @@ production:
 # Keys and senders go to application-local.yml (see application-local.example.yml).
 nova-poshta:
   fake-documents: false
+# Checkbox: the same, cashier keys only in application-local.yml. Open shifts are checked every 15 minutes (0: never).
+checkbox:
+  fake-receipts: false
+  auto-close-interval-minutes: 15
 
 # API docs: /swagger-ui.html
 springdoc:

@@ -267,3 +267,300 @@ CREATE TABLE `dd_novaposhta_warehouse` (
   KEY `city_ref` (`city_ref`),
   KEY `city_description` (`city_description`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Власна колонка замовлення: завдаток (передоплата), уже отриманий до відправки. Старий сайт віднімає його
+-- від суми фіскального чека (admin/model/cashbox/cheque.php) і накладеного платежу. Тип вгаданий, звірити.
+ALTER TABLE `dd_order`
+  ADD COLUMN `prepayment` decimal(15,4) NOT NULL DEFAULT '0.0000';
+
+-- ═══ Каса: ПРРО Checkbox ═══
+-- Відновлено з admin/model/cashbox/*.php, admin/controller/cashbox/*.php і system/library/Checkbox.php.
+-- Типи, довжини, ключі й рушій вгадані, звірити (SHOW CREATE TABLE).
+
+-- Реквізити (ФОП), на які видається чек.
+CREATE TABLE `dd_cashbox_requisites` (
+  `requisites_id` int(11) NOT NULL AUTO_INCREMENT,
+  `name` varchar(255) NOT NULL DEFAULT '',
+  `description` text NOT NULL,
+  `date_added` datetime NOT NULL,
+  PRIMARY KEY (`requisites_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Склад або точка продажу каси.
+CREATE TABLE `dd_cashbox_warehouse` (
+  `warehouse_id` int(11) NOT NULL AUTO_INCREMENT,
+  `name` varchar(255) NOT NULL DEFAULT '',
+  `description` text NOT NULL,
+  `date_added` datetime NOT NULL,
+  PRIMARY KEY (`warehouse_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Касир Checkbox. payment_code — для яких замовлень (код оплати OpenCart) його обирати.
+-- auto_close_time — о котрій закривати зміну автоматично (Z-звіт).
+-- login, password, checkbox_key (ключ ліцензії каси) й access_token старий сайт зберігає тут відкрито.
+-- NewErp ці чотири колонки не читає й не пише: ключі касирів лише в dotnet user-secrets (Checkbox:Cashiers).
+CREATE TABLE `dd_cashbox_user` (
+  `user_id` int(11) NOT NULL AUTO_INCREMENT,
+  `name` varchar(255) NOT NULL DEFAULT '',
+  `description` text NOT NULL,
+  `payment_code` varchar(128) NOT NULL DEFAULT '',
+  `login` varchar(255) NOT NULL DEFAULT '',
+  `password` varchar(255) NOT NULL DEFAULT '',
+  `checkbox_key` varchar(255) NOT NULL DEFAULT '',
+  `auto_close_time` time NULL,
+  `access_token` text NULL,
+  `date_access_token_update` datetime NULL,
+  `customer_id` int(11) NOT NULL DEFAULT '0',
+  `warehouse_id` int(11) NOT NULL DEFAULT '0',
+  `requisites_id` int(11) NOT NULL DEFAULT '0',
+  `status` tinyint(1) NOT NULL DEFAULT '0',
+  `date_added` datetime NOT NULL,
+  PRIMARY KEY (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Робоча зміна касира. user_id — хто відкрив (dd_user), date_end NULL — зміна відкрита.
+CREATE TABLE `dd_cashbox_work_shift` (
+  `work_shift_id` int(11) NOT NULL AUTO_INCREMENT,
+  `user_id` int(11) NOT NULL DEFAULT '0',
+  `cashbox_user_id` int(11) NOT NULL,
+  `checkbox_shift_id` varchar(64) NOT NULL DEFAULT '',
+  `date_added` datetime NOT NULL,
+  `date_start` datetime NOT NULL,
+  `date_end` datetime NULL,
+  PRIMARY KEY (`work_shift_id`),
+  KEY `cashbox_user_id` (`cashbox_user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Фіскальний чек до замовлення. checkbox_id — id чека в Checkbox (порожньо, поки не фіскалізовано).
+-- sum старий сайт пише через (int), тобто без копійок; можливо, і колонка цілочисельна — звірити.
+CREATE TABLE `dd_cashbox_cheque` (
+  `cheque_id` int(11) NOT NULL AUTO_INCREMENT,
+  `order_id` int(11) NOT NULL,
+  `cashbox_user_id` int(11) NOT NULL,
+  `cashbox_warehouse_id` int(11) NOT NULL DEFAULT '0',
+  `cashbox_requisites_id` int(11) NOT NULL DEFAULT '0',
+  `sum` decimal(15,4) NOT NULL DEFAULT '0.0000',
+  `checkbox_id` varchar(64) NOT NULL DEFAULT '',
+  `cashbox_work_shift_id` int(11) NOT NULL DEFAULT '0',
+  `cashbox_report_id` int(11) NOT NULL DEFAULT '0',
+  `date_added` datetime NOT NULL,
+  PRIMARY KEY (`cheque_id`),
+  KEY `order_id` (`order_id`),
+  KEY `cashbox_user_id` (`cashbox_user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Z-звіт (закриття зміни). z_report_id — id звіту в Checkbox.
+CREATE TABLE `dd_cashbox_report` (
+  `report_id` int(11) NOT NULL AUTO_INCREMENT,
+  `user_id` int(11) NOT NULL DEFAULT '0',
+  `cashbox_user_id` int(11) NOT NULL,
+  `z_report_id` varchar(64) NOT NULL DEFAULT '',
+  `date_added` datetime NOT NULL,
+  PRIMARY KEY (`report_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ═══ Надходження на рахунки ПриватБанку ═══
+-- Відновлено з admin/model/sale/privatbank.php і admin/controller/sale/privatbank.php. Типи вгадані, звірити.
+-- Суми старий сайт зберігає текстом із валютою («1500.00 UAH»). appcode — id транзакції в банку (не повторюється).
+-- order_id — замовлення, до якого прив'язано платіж (0 — ще не прив'язано); show_status = 0 — платіж приховано.
+-- status пише лише метод updateStatus, якого в моделі старого сайту немає; NewErp колонку не використовує.
+CREATE TABLE `dd_privatbank` (
+  `payment_id` int(11) NOT NULL AUTO_INCREMENT,
+  `order_id` int(11) NOT NULL DEFAULT '0',
+  `appcode` varchar(64) NOT NULL DEFAULT '',
+  `card` varchar(64) NOT NULL DEFAULT '',
+  `amount` varchar(32) NOT NULL DEFAULT '',
+  `cardamount` varchar(32) NOT NULL DEFAULT '',
+  `rest` varchar(32) NOT NULL DEFAULT '',
+  `description` text NOT NULL,
+  `terminal` varchar(255) NOT NULL DEFAULT '',
+  `trandate` date NOT NULL,
+  `trantime` time NOT NULL,
+  `status` varchar(32) NOT NULL DEFAULT '',
+  `show_status` tinyint(1) NOT NULL DEFAULT '1',
+  PRIMARY KEY (`payment_id`),
+  KEY `appcode` (`appcode`),
+  KEY `order_id` (`order_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ═══ Власні колонки замовлення, які пише оформлення замовлення старого сайту ═══
+-- Відновлено з catalog/model/checkout/order.php (addOrder) і admin/model/sale/order.php. Типи й значення за замовчуванням вгадані, звірити.
+-- Instagram клієнта, будинок і квартира для адресної доставки, день народження (для привітань), «передзвоніть мені».
+ALTER TABLE `dd_order`
+  ADD COLUMN `instagram` varchar(128) NOT NULL DEFAULT '',
+  ADD COLUMN `birthday_day` int(2) NOT NULL DEFAULT '0',
+  ADD COLUMN `birthday_month` int(2) NOT NULL DEFAULT '0',
+  ADD COLUMN `shipping_house` varchar(32) NOT NULL DEFAULT '',
+  ADD COLUMN `shipping_flat` varchar(32) NOT NULL DEFAULT '',
+  ADD COLUMN `callback` tinyint(1) NOT NULL DEFAULT '0';
+
+-- Товар додано до замовлення як супутній (cross-sell). Звірити.
+ALTER TABLE `dd_order_product`
+  ADD COLUMN `crosssell` tinyint(1) NOT NULL DEFAULT '0';
+
+-- ═══ Партнери-перепродавці та фід для них ═══
+-- Відновлено з admin/model/sale/partner.php і catalog/model/feed/eva.php. DDL у коді немає: типи, довжини й ключі вгадані, звірити.
+-- code — короткий код партнера, з ним формується адреса фіда; default_quantity — кількість, яку фід показує для кожної пропозиції.
+CREATE TABLE `dd_partner` (
+  `partner_id` int(11) NOT NULL AUTO_INCREMENT,
+  `code` varchar(32) NOT NULL,
+  `name` varchar(128) NOT NULL,
+  `status` tinyint(1) NOT NULL DEFAULT '1',
+  `feed_url` varchar(255) NOT NULL DEFAULT '',
+  `feed_enabled` tinyint(1) NOT NULL DEFAULT '0',
+  `vendor_name` varchar(64) NOT NULL DEFAULT '',
+  `notes` text NOT NULL,
+  `default_quantity` int(11) NOT NULL DEFAULT '5',
+  `date_added` datetime NOT NULL,
+  `date_modified` datetime NOT NULL,
+  PRIMARY KEY (`partner_id`),
+  UNIQUE KEY `code` (`code`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci;
+
+-- Категорія магазину (за потреби лише один розмір) → категорія партнера, з націнкою до ціни (percent_supply)
+-- і до перекресленої «старої» ціни (percent_sale) у відсотках. NULL — без націнки чи без старої ціни. Звірити.
+CREATE TABLE `dd_partner_category_map` (
+  `partner_category_map_id` int(11) NOT NULL AUTO_INCREMENT,
+  `partner_id` int(11) NOT NULL,
+  `category_id` int(11) NOT NULL,
+  `size_name` varchar(64) DEFAULT NULL,
+  `external_id` varchar(64) NOT NULL DEFAULT '',
+  `external_name` varchar(255) NOT NULL DEFAULT '',
+  `percent_supply` decimal(8,2) DEFAULT NULL,
+  `percent_sale` decimal(8,2) DEFAULT NULL,
+  PRIMARY KEY (`partner_category_map_id`),
+  KEY `partner_id` (`partner_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci;
+
+-- Окремий товар (за потреби лише один розмір) у фіді партнера: свій артикул і назва в партнера, фіксовані ціни.
+-- Ключа partner_product_map_id старий код не читає, але таблиці потрібен первинний ключ. Звірити.
+CREATE TABLE `dd_partner_product_map` (
+  `partner_product_map_id` int(11) NOT NULL AUTO_INCREMENT,
+  `partner_id` int(11) NOT NULL,
+  `product_id` int(11) NOT NULL,
+  `size_name` varchar(64) DEFAULT NULL,
+  `external_id` varchar(64) NOT NULL DEFAULT '',
+  `external_name` varchar(255) NOT NULL DEFAULT '',
+  `price_supply` decimal(15,4) DEFAULT NULL,
+  `price_sale` decimal(15,4) DEFAULT NULL,
+  PRIMARY KEY (`partner_product_map_id`),
+  KEY `partner_id` (`partner_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci;
+
+-- ═══ Порядок товарів за продажами ═══
+-- Відновлено з admin/model/catalog/product_order.php, label.php і crosssell.php. DDL у коді немає: типи, довжини, ключі й рушій вгадані, звірити.
+-- Хто створив замовлення в адмінці. Порядок товарів не рахує продажі одного користувача (B2B). Звірити.
+ALTER TABLE `dd_order`
+  ADD COLUMN `user_id` int(11) NOT NULL DEFAULT '0';
+
+-- Мітки товарів («Новинка», «Хіт»...).
+CREATE TABLE `dd_product_label` (
+  `label_id` int(11) NOT NULL AUTO_INCREMENT,
+  `name` varchar(64) NOT NULL,
+  `background_color` varchar(16) NOT NULL DEFAULT '',
+  `text_color` varchar(16) NOT NULL DEFAULT '',
+  `sort_order` int(3) NOT NULL DEFAULT '0',
+  `status` tinyint(1) NOT NULL DEFAULT '1',
+  PRIMARY KEY (`label_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci;
+
+CREATE TABLE `dd_product_to_label` (
+  `product_id` int(11) NOT NULL,
+  `label_id` int(11) NOT NULL,
+  PRIMARY KEY (`product_id`,`label_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci;
+
+-- Панель допродажу при оформленні: окремі товари (type = 'product') і категорії (type = 'category') зі знижкою, %.
+CREATE TABLE `dd_crosssell_item` (
+  `crosssell_item_id` int(11) NOT NULL AUTO_INCREMENT,
+  `type` varchar(16) NOT NULL,
+  `target_id` int(11) NOT NULL,
+  `discount` decimal(5,2) NOT NULL DEFAULT '0.00',
+  PRIMARY KEY (`crosssell_item_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci;
+
+-- Власний порядок товарів у панелі допродажу.
+CREATE TABLE `dd_crosssell_sort` (
+  `product_id` int(11) NOT NULL,
+  `sort_order` int(11) NOT NULL,
+  PRIMARY KEY (`product_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci;
+
+-- Знімки sort_order усіх товарів перед кожним перерахунком (для відкату).
+CREATE TABLE `dd_product_order_snapshot` (
+  `snapshot_id` int(11) NOT NULL AUTO_INCREMENT,
+  `note` varchar(255) NOT NULL DEFAULT '',
+  `created_at` datetime NOT NULL,
+  PRIMARY KEY (`snapshot_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci;
+
+CREATE TABLE `dd_product_order_snapshot_item` (
+  `snapshot_id` int(11) NOT NULL,
+  `product_id` int(11) NOT NULL,
+  `sort_order` int(11) NOT NULL,
+  PRIMARY KEY (`snapshot_id`,`product_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci;
+
+-- Закріплені вручну позиції: товар product_id стоїть на позиції position у групі (group_type, group_key).
+CREATE TABLE `dd_product_manual_pin` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `group_type` varchar(32) NOT NULL,
+  `group_key` varchar(128) NOT NULL,
+  `position` int(11) NOT NULL,
+  `product_id` int(11) NOT NULL,
+  `created_at` datetime NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `group` (`group_type`,`group_key`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci;
+
+-- ═══ Передзамовлення ═══
+-- Відновлено з admin/model/catalog/product.php, system/library/cart/cart.php і admin/controller/tool/console.php (updatePreOrdersQuantity).
+-- pre_order_quantity — скільки штук розміру можна продати наперед, коли залишку немає; date_available — коли розмір очікується.
+-- Типи вгадані (старий код пише дату рядком), звірити.
+ALTER TABLE `dd_product_option_value`
+  ADD COLUMN `pre_order_quantity` int(11) NOT NULL DEFAULT '0',
+  ADD COLUMN `date_available` date DEFAULT NULL;
+
+-- ═══ Маркетинг ═══
+-- Запитання покупців про товар (форма на сайті). Відновлено з catalog/model/catalog/question.php; DDL у коді немає,
+-- типи й рушій вгадані, звірити. NewErp лише читає телефони звідси для вивантаження контактів.
+CREATE TABLE `dd_question` (
+  `question_id` int(11) NOT NULL AUTO_INCREMENT,
+  `product_id` int(11) NOT NULL DEFAULT '0',
+  `name` varchar(64) NOT NULL DEFAULT '',
+  `telephone` varchar(32) NOT NULL DEFAULT '',
+  `question` text NOT NULL,
+  `date_added` datetime NOT NULL,
+  PRIMARY KEY (`question_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci;
+
+-- Підписка на розсилку (e-mail). Відновлено з catalog/model/catalog/subscribe.php; типи вгадані, звірити.
+CREATE TABLE `dd_subscribe` (
+  `subscribe_id` int(11) NOT NULL AUTO_INCREMENT,
+  `email` varchar(96) NOT NULL,
+  `date_added` datetime NOT NULL,
+  PRIMARY KEY (`subscribe_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci;
+
+-- ═══ План пошиву ═══
+-- production_period — за скільки днів від дати замовлення товар цієї категорії має бути готовий.
+-- Відновлено з admin/controller/sale/order.php (date_production = date_added + production_period днів); тип і значення
+-- за замовчуванням вгадані, звірити.
+ALTER TABLE `dd_category`
+  ADD COLUMN `production_period` int(11) NOT NULL DEFAULT '0';
+
+-- ═══ Склади й пункти видачі ═══
+-- Довідник «Каталог → Склади» старої адмінки. Відновлено з admin/model/catalog/warehouse.php і warehouse_form.twig
+-- (назва до 64 символів — з перевірки форми). Решта довжин, типи й рушій вгадані, звірити.
+CREATE TABLE `dd_warehouse` (
+  `warehouse_id` int(11) NOT NULL AUTO_INCREMENT,
+  `name` varchar(64) NOT NULL,
+  `description` text NOT NULL,
+  `contact` varchar(128) NOT NULL DEFAULT '',
+  `telephone` varchar(255) NOT NULL DEFAULT '',
+  `city` varchar(128) NOT NULL DEFAULT '',
+  `address` varchar(255) NOT NULL DEFAULT '',
+  `type` varchar(64) NOT NULL DEFAULT '',
+  `image` varchar(255) NOT NULL DEFAULT '',
+  PRIMARY KEY (`warehouse_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci;

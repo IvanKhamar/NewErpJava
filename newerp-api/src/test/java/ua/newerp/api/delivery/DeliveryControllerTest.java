@@ -45,6 +45,14 @@ class DeliveryControllerTest extends IntegrationTest {
     }
 
     @Test
+    void cashOnDeliveryIsTheTotalMinusThePrepayment() {
+        jdbc.sql("UPDATE dd_order SET prepayment = 300 WHERE order_id = 1001").update();
+
+        assertThat(mvc.get().uri("/orders/1001/shipment/form").session(olena)).bodyJson()
+                .isLenientlyEqualTo("{\"declaredCost\":1500.0000,\"cashOnDelivery\":1200.0000}");
+    }
+
+    @Test
     void formIsFilledFromTheOrderAndDirectory() {
         assertThat(mvc.get().uri("/orders/1001/shipment/form").session(olena)).bodyJson().isLenientlyEqualTo("""
                 {"firstName":"Ірина","lastName":"Шевчук","phone":"+380671112233","cityName":"Київ",
