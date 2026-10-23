@@ -84,6 +84,28 @@ public final class StockPlacement {
         return movement;
     }
 
+    /**
+     * Stocktaking of one place: its quantity becomes what was counted, and the item's total changes by the same difference
+     * (a log entry). Returns null when the count matches.
+     */
+    public StockMovement recountAt(Integer warehouseId, BigDecimal actual, String comment, int userId, String username,
+            LocalDateTime now) {
+        Stocktaking.requireValid(actual);
+        BigDecimal delta = actual.subtract(at(warehouseId));
+        if (delta.signum() == 0) {
+            return null;
+        }
+        StockMovement movement = item.recount(item.getQuantity().add(delta), comment, userId, username, now);
+        change(warehouseId, delta);
+        return movement;
+    }
+
+    /** A receipt that already went into the item's total (a supplier delivery) lies at this warehouse, not on the main stock. */
+    public void receivedAt(int warehouseId, BigDecimal quantity) {
+        requireQuantity(quantity);
+        change(warehouseId, quantity);
+    }
+
     /** Balances made by this placement for warehouses that had none yet: to be saved. */
     public List<StockBalance> created() {
         return List.copyOf(created);

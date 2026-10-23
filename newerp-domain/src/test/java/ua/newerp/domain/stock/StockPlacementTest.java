@@ -82,4 +82,30 @@ class StockPlacementTest {
         assertThatThrownBy(() -> placement.adjustAt(null, n("-1"), "Крій", 1, "keeper", StockItemTest.NOW))
                 .hasMessageContaining("на основному складі є 0 м");
     }
+
+    @Test
+    void stocktakingOfAPlaceChangesItAndTheTotalBySameDifference() {
+        StockPlacement placement = placement();
+
+        StockMovement shortage = placement.recountAt(7, n("3"), "Інвентаризація", 1, "keeper", StockItemTest.NOW);
+        assertThat(shortage.getDelta()).isEqualByComparingTo("-1");
+        assertThat(placement.item().getQuantity()).isEqualByComparingTo("9");
+        assertThat(placement.main()).isEqualByComparingTo("6");
+
+        assertThat(placement.recountAt(null, n("6"), "Інвентаризація", 1, "keeper", StockItemTest.NOW)).isNull();
+        placement.recountAt(null, n("8"), "Інвентаризація", 1, "keeper", StockItemTest.NOW);
+        assertThat(placement.item().getQuantity()).isEqualByComparingTo("11");
+        assertThat(placement.at(7)).isEqualByComparingTo("3");
+    }
+
+    @Test
+    void aDeliveryAlreadyInTheTotalIsPlacedAtAWarehouse() {
+        StockPlacement placement = placement();
+        placement.item().adjust(n("5"), "Прихід за замовленням постачальнику №3", 1, "keeper", StockItemTest.NOW);
+        placement.receivedAt(8, n("5"));
+
+        assertThat(placement.at(8)).isEqualByComparingTo("5");
+        assertThat(placement.main()).isEqualByComparingTo("6");
+        assertThat(placement.created()).extracting(StockBalance::getWarehouseId).containsExactly(7, 8);
+    }
 }

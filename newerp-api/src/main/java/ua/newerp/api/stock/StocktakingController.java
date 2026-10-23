@@ -37,25 +37,27 @@ class StocktakingController {
     }
 
     @GetMapping("/sheet.xlsx")
-    @Operation(summary = "Відомість для інвентаризації в Excel: ID, Назва, Категорія, Од., За обліком і порожня колонка «Фактично»")
-    ResponseEntity<byte[]> sheet(@RequestParam(required = false) Integer categoryId) {
+    @Operation(summary = "Відомість для інвентаризації в Excel: ID, Назва, Категорія, Од., За обліком і порожня колонка «Фактично»; "
+            + "з warehouseId — облікове на цьому складі, без нього — на основному")
+    ResponseEntity<byte[]> sheet(@RequestParam(required = false) Integer categoryId,
+            @RequestParam(required = false) Integer warehouseId) {
         return ResponseEntity.ok()
                 .contentType(XLSX)
                 .header(HttpHeaders.CONTENT_DISPOSITION,
                         ContentDisposition.attachment().filename("inventaryzatsiia-" + LocalDate.now() + ".xlsx").build().toString())
-                .body(service.sheet(categoryId));
+                .body(service.sheet(categoryId, warehouseId));
     }
 
     // The file comes as the raw request body, as in the warehouses import
     @PostMapping(path = "/preview", consumes = MediaType.APPLICATION_OCTET_STREAM_VALUE)
     @Operation(summary = "Прочитати заповнену відомість: порахована кількість, облікова й різниця по кожній позиції; нічого не записує")
-    StocktakingPreviewDto preview(@RequestBody byte[] file) {
-        return service.preview(file);
+    StocktakingPreviewDto preview(@RequestBody byte[] file, @RequestParam(required = false) Integer warehouseId) {
+        return service.preview(file, warehouseId);
     }
 
     @PostMapping
-    @Operation(summary = "Провести інвентаризацію: залишок кожної позиції стає порахованим, різниця йде в журнал руху "
-            + "з коментарем «Інвентаризація»; з помилкою нічого не записується")
+    @Operation(summary = "Провести інвентаризацію: залишок кожної позиції на порахованому місці (warehouseId; без нього — основний "
+            + "склад) стає порахованим, різниця йде в журнал руху з коментарем «Інвентаризація»; з помилкою нічого не записується")
     StocktakingResult apply(@RequestBody ApplyStocktakingRequest request, @AuthenticationPrincipal AuthenticatedUser user) {
         return service.apply(request, user.user().userId(), user.user().username());
     }

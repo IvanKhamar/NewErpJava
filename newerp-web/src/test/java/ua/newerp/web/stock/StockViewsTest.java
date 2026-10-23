@@ -11,6 +11,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -146,10 +147,12 @@ class StockViewsTest extends BrowserlessTest {
         var stocktaking = mock(StocktakingService.class);
         when(stocktaking.apply(any(ApplyStocktakingRequest.class), any(Integer.class), any(String.class)))
                 .thenReturn(new StocktakingResult(1, 1, new BigDecimal("-160.00")));
-        var view = new StocktakingView(repository, stocktaking, session);
+        when(stocktaking.booked(null)).thenReturn(Map.of(1, new BigDecimal("4.5"), 2, new BigDecimal("40")));
+        var view = new StocktakingView(repository, stocktaking, warehouses, session);
         UI.getCurrent().add(view);
         roundTrip();
 
+        assertThat(view.place.isVisible()).isFalse();
         test(view.apply).click();
         verify(stocktaking, never()).apply(any(ApplyStocktakingRequest.class), any(Integer.class), any(String.class));
 
@@ -161,15 +164,38 @@ class StockViewsTest extends BrowserlessTest {
                 3, "taras");
 
         byte[] sheet = {1, 2, 3};
-        when(stocktaking.preview(sheet)).thenReturn(new StocktakingPreviewDto(
+        when(stocktaking.preview(sheet, null)).thenReturn(new StocktakingPreviewDto(
                 List.of(new StocktakingLineDto(2, "Нитки білі", "шт", new BigDecimal("40"), new BigDecimal("38"), new BigDecimal("-2"))),
                 List.of()));
         view.uploadSheet(sheet);
         assertThat(view.rows.get(1).actual.getValue()).isEqualByComparingTo("38");
 
-        when(stocktaking.preview(sheet)).thenReturn(new StocktakingPreviewDto(List.of(), List.of("Рядок 3: «багато» — не кількість.")));
+        when(stocktaking.preview(sheet, null)).thenReturn(new StocktakingPreviewDto(List.of(), List.of("Рядок 3: «багато» — не кількість.")));
         view.uploadSheet(sheet);
         assertThat(view.uploadErrors.getElement().getTextRecursively()).contains("«багато»");
+    }
+
+    @Test
+    void stocktakingAtAWarehouseComparesWithWhatLiesThere() {
+        var stocktaking = mock(StocktakingService.class);
+        when(warehouses.list(null)).thenReturn(List.of(new LocationDto(901, "Цех", "", "", "", "", "", "")));
+        when(stocktaking.booked(null)).thenReturn(Map.of(1, new BigDecimal("4.5"), 2, new BigDecimal("40")));
+        when(stocktaking.booked(901)).thenReturn(Map.of(1, new BigDecimal("1.5")));
+        when(stocktaking.apply(any(ApplyStocktakingRequest.class), any(Integer.class), any(String.class)))
+                .thenReturn(new StocktakingResult(1, 1, new BigDecimal("-160.00")));
+        var view = new StocktakingView(repository, stocktaking, warehouses, session);
+        UI.getCurrent().add(view);
+        roundTrip();
+
+        assertThat(view.place.isVisible()).isTrue();
+        test(view.place).selectItem("Цех");
+        roundTrip();
+        test(view.rows.getFirst().actual).setValue(new BigDecimal("1"));
+        assertThat(view.rows.getFirst().difference.getText()).isEqualTo("-0,5");
+        test(view.apply).click();
+
+        verify(stocktaking).apply(new ApplyStocktakingRequest(List.of(new StocktakingCountRequest(1, BigDecimal.ONE)), "", 901), 3,
+                "taras");
     }
 
     @Test

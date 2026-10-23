@@ -22,6 +22,8 @@ import com.vaadin.flow.component.confirmdialog.ConfirmDialog;
 
 import ua.newerp.application.auth.CurrentUser;
 import ua.newerp.application.common.LookupItem;
+import ua.newerp.application.locations.LocationDto;
+import ua.newerp.application.locations.LocationService;
 import ua.newerp.application.stock.CreateStockCategoryRequest;
 import ua.newerp.application.stock.CreateStockSupplierRequest;
 import ua.newerp.application.stock.PurchaseOrderDto;
@@ -52,6 +54,7 @@ class PurchasingViewsTest extends BrowserlessTest {
     final PurchaseOrderRepository repository = mock(PurchaseOrderRepository.class);
     final PurchaseOrderService service = mock(PurchaseOrderService.class);
     final CurrentSession session = mock(CurrentSession.class);
+    final LocationService warehouses = mock(LocationService.class);
     final LocalDateTime now = LocalDateTime.of(2026, 10, 20, 10, 0);
     final PurchaseOrderLineDto linen = new PurchaseOrderLineDto(11, 1, "Льон бежевий", "м", new BigDecimal("20"), new BigDecimal("300"),
             new BigDecimal("6000"), new BigDecimal("5"), new BigDecimal("15"));
@@ -84,7 +87,7 @@ class PurchasingViewsTest extends BrowserlessTest {
     @Test
     void sendingADraftSavesTheEditedQuantitiesFirst() {
         when(repository.getDto(7)).thenReturn(Optional.of(order(PurchaseOrder.DRAFT)));
-        var view = new PurchaseOrderCardView(repository, service, session);
+        var view = new PurchaseOrderCardView(repository, service, warehouses, session);
         UI.getCurrent().add(view);
         view.open(7);
         roundTrip(); // the grid attaches its component cells on the next round trip
@@ -99,9 +102,25 @@ class PurchasingViewsTest extends BrowserlessTest {
     }
 
     @Test
+    void aDeliveryCanGoToAWarehouse() {
+        when(warehouses.list(null)).thenReturn(List.of(new LocationDto(901, "Цех", "", "", "", "", "", "")));
+        when(repository.getDto(7)).thenReturn(Optional.of(order(PurchaseOrder.ORDERED)));
+        var view = new PurchaseOrderCardView(repository, service, warehouses, session);
+        UI.getCurrent().add(view);
+        view.open(7);
+        roundTrip();
+
+        test(view.place).selectItem("Цех");
+        test(view.receive).click();
+
+        verify(service).receive(7, new ReceivePurchaseOrderRequest(List.of(new ReceiptLineRequest(11, new BigDecimal("15"))), 901), 3,
+                "taras");
+    }
+
+    @Test
     void receivingStartsWithWhatIsStillExpected() {
         when(repository.getDto(7)).thenReturn(Optional.of(order(PurchaseOrder.ORDERED)));
-        var view = new PurchaseOrderCardView(repository, service, session);
+        var view = new PurchaseOrderCardView(repository, service, warehouses, session);
         UI.getCurrent().add(view);
         view.open(7);
         roundTrip(); // the grid attaches its component cells on the next round trip
