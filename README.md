@@ -4,7 +4,7 @@ Java version of [NewErp](https://github.com/IvanKhamar/NewErp): an ERP for a sew
 that gradually replaces the accounting part of an old OpenCart site. It works with the same MySQL database as the
 .NET version, so both can run side by side.
 
-**Status:** the back end of NewErp up to the .NET port base of Oct 16 (orders, login and users, stock, production, bonuses, SMS, Nova Poshta), plus the Checkbox cash register and payments (PrivatBank statement, LiqPay). The newer .NET modules (new order, customers, returns, partners, product sort, pre-orders, reports, marketing) are being ported. The existing Blazor UI runs on top of it (see Web UI).
+**Status:** the back end of NewErp up to the .NET port base of Oct 16 (orders, login and users, stock, production, bonuses, SMS, Nova Poshta), plus the Checkbox cash register, payments (PrivatBank statement, LiqPay) and creating orders by hand (with the customer risk check and order composition changes). The newer .NET modules (customers, returns, partners, product sort, pre-orders, reports, marketing) are being ported. The existing Blazor UI runs on top of it (see Web UI).
 
 ## Stack
 

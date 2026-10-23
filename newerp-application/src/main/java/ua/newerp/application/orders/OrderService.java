@@ -48,6 +48,29 @@ public class OrderService {
         return new ChangeOrderStatusResult(warnings);
     }
 
+    /**
+     * Changes an order's lines so that other modules (sewn stock) take it into account. Like the old site's editOrder:
+     * first the order as if leaves its status (the handlers give back what it held), then the lines change, and the
+     * order as if enters the status again (the handlers take by the new lines). The status and its log do not change.
+     */
+    public List<String> reapplyStatus(int orderId, int statusId, Runnable change, int userId) {
+        if (statusId <= 0) {
+            change.run();
+            return List.of();
+        }
+
+        LocalDateTime now = now();
+        for (OrderStatusHandler handler : handlers) {
+            handler.onStatusChanging(new OrderStatusChange(orderId, statusId, 0, userId, now));
+        }
+        change.run();
+        var warnings = new ArrayList<String>();
+        for (OrderStatusHandler handler : handlers) {
+            warnings.addAll(handler.onStatusChanging(new OrderStatusChange(orderId, 0, statusId, userId, now)));
+        }
+        return warnings;
+    }
+
     public void assignManager(int orderId, AssignManagerRequest request, int userId) {
         requireStatusId(orderId);
         requireActiveUser(request.managerId());
