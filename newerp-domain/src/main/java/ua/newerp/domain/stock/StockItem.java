@@ -12,7 +12,7 @@ import ua.newerp.domain.common.Text;
 
 /**
  * A consumable in stock (fabric, fittings, packaging...), table dd_stock_items of the old site.
- * The quantity changes only through {@link #adjust} and {@link #takeUpTo}, so every change gets into the log.
+ * The quantity changes only through {@link #adjust}, {@link #takeUpTo} and {@link #recount}, so every change gets into the log.
  */
 public class StockItem {
 
@@ -76,6 +76,16 @@ public class StockItem {
         }
         BigDecimal amount = wanted.min(quantity);
         return amount.signum() > 0 ? change(amount.negate(), Text.require(comment, "Причина", 255), userId, username, now) : null;
+    }
+
+    /**
+     * Stocktaking: the quantity becomes what was counted, and the difference goes into the log.
+     * Returns null when the count matches the books.
+     */
+    public StockMovement recount(BigDecimal actual, String comment, int userId, String username, LocalDateTime now) {
+        Stocktaking.requireValid(actual);
+        BigDecimal delta = actual.subtract(quantity);
+        return delta.signum() == 0 ? null : change(delta, Text.require(comment, "Причина", 255), userId, username, now);
     }
 
     public void setMinQuantity(BigDecimal minQuantity) {

@@ -24,15 +24,21 @@ import com.vaadin.flow.component.notification.Notification;
 import ua.newerp.application.auth.CurrentUser;
 import ua.newerp.application.common.LookupItem;
 import ua.newerp.application.stock.AdjustStockRequest;
+import ua.newerp.application.stock.ApplyStocktakingRequest;
 import ua.newerp.application.stock.StockItemDto;
 import ua.newerp.application.stock.StockItemFilter;
 import ua.newerp.application.stock.StockMovementDto;
 import ua.newerp.application.stock.StockRepository;
 import ua.newerp.application.stock.StockService;
+import ua.newerp.application.stock.StocktakingCountRequest;
+import ua.newerp.application.stock.StocktakingLineDto;
+import ua.newerp.application.stock.StocktakingPreviewDto;
+import ua.newerp.application.stock.StocktakingResult;
+import ua.newerp.application.stock.StocktakingService;
 import ua.newerp.web.auth.CurrentSession;
 
 /** The stock pages with mocked services; the materials are invented. */
-@ViewPackages(classes = {StockListView.class, StockItemView.class})
+@ViewPackages(classes = {StockListView.class, StockItemView.class, StocktakingView.class})
 class StockViewsTest extends BrowserlessTest {
 
     final StockRepository repository = mock(StockRepository.class);
@@ -99,5 +105,36 @@ class StockViewsTest extends BrowserlessTest {
         test(view.minQuantity).setValue(new BigDecimal("8"));
         test(view.saveMinimum).click();
         verify(service).setMinQuantity(1, new BigDecimal("8"));
+    }
+
+    @Test
+    void stocktakingSendsOnlyCountedRowsAndAnUploadedSheetFillsThem() {
+        var stocktaking = mock(StocktakingService.class);
+        when(stocktaking.apply(any(ApplyStocktakingRequest.class), any(Integer.class), any(String.class)))
+                .thenReturn(new StocktakingResult(1, 1, new BigDecimal("-160.00")));
+        var view = new StocktakingView(repository, stocktaking, session);
+        UI.getCurrent().add(view);
+        roundTrip();
+
+        test(view.apply).click();
+        verify(stocktaking, never()).apply(any(ApplyStocktakingRequest.class), any(Integer.class), any(String.class));
+
+        test(view.rows.getFirst().actual).setValue(new BigDecimal("4"));
+        assertThat(view.rows.getFirst().difference.getText()).isEqualTo("-0,5");
+        test(view.comment).setValue("жовтень");
+        test(view.apply).click();
+        verify(stocktaking).apply(new ApplyStocktakingRequest(List.of(new StocktakingCountRequest(1, new BigDecimal("4"))), "жовтень"),
+                3, "taras");
+
+        byte[] sheet = {1, 2, 3};
+        when(stocktaking.preview(sheet)).thenReturn(new StocktakingPreviewDto(
+                List.of(new StocktakingLineDto(2, "Нитки білі", "шт", new BigDecimal("40"), new BigDecimal("38"), new BigDecimal("-2"))),
+                List.of()));
+        view.uploadSheet(sheet);
+        assertThat(view.rows.get(1).actual.getValue()).isEqualByComparingTo("38");
+
+        when(stocktaking.preview(sheet)).thenReturn(new StocktakingPreviewDto(List.of(), List.of("Рядок 3: «багато» — не кількість.")));
+        view.uploadSheet(sheet);
+        assertThat(view.uploadErrors.getElement().getTextRecursively()).contains("«багато»");
     }
 }

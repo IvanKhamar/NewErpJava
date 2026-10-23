@@ -1,4 +1,4 @@
-package ua.newerp.infrastructure.locations;
+package ua.newerp.infrastructure.common;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -16,41 +16,50 @@ import org.apache.poi.xssf.usermodel.XSSFCellStyle;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Component;
 
-import ua.newerp.application.locations.LocationDto;
-import ua.newerp.application.locations.LocationSpreadsheet;
+import ua.newerp.application.common.Spreadsheet;
 import ua.newerp.domain.common.DomainException;
 
 /** The .xlsx file through Apache POI (ClosedXML in .NET; the old site wrote XLSXWriter and read SimpleXLSX). */
 @Component
-class PoiLocationSpreadsheet implements LocationSpreadsheet {
+class PoiSpreadsheet implements Spreadsheet {
 
     @Override
-    public byte[] write(List<String> header, List<LocationDto> rows) {
+    public byte[] write(String sheetName, List<String> header, List<List<Object>> rows) {
         try (var book = new XSSFWorkbook(); var output = new ByteArrayOutputStream()) {
-            Sheet sheet = book.createSheet("Склади");
+            Sheet sheet = book.createSheet(sheetName);
             XSSFCellStyle bold = book.createCellStyle();
             Font font = book.createFont();
             font.setBold(true);
             bold.setFont(font);
+            int[] widths = new int[header.size()];
             Row first = sheet.createRow(0);
             for (int c = 0; c < header.size(); c++) {
                 Cell cell = first.createCell(c);
                 cell.setCellValue(header.get(c));
                 cell.setCellStyle(bold);
+                widths[c] = header.get(c).length();
             }
             for (int r = 0; r < rows.size(); r++) {
-                LocationDto x = rows.get(r);
+                List<Object> values = rows.get(r);
                 Row row = sheet.createRow(r + 1);
-                row.createCell(0).setCellValue(x.id());
-                // Text goes in as text: the phone "0671234567" must not become a number without the zero.
-                String[] values = {x.name(), x.description(), x.contact(), x.telephone(), x.city(), x.address(), x.type()};
-                for (int c = 0; c < values.length; c++) {
-                    row.createCell(c + 1).setCellValue(values[c]);
+                for (int c = 0; c < values.size(); c++) {
+                    Object value = values.get(c);
+                    Cell cell = row.createCell(c);
+                    // Text goes in as text: the phone "0671234567" must not become a number without the zero.
+                    // "instanceof Number n" is a type pattern, like C#'s "is Number n".
+                    if (value instanceof Number n) {
+                        cell.setCellValue(n.doubleValue());
+                    } else if (value != null) {
+                        cell.setCellValue(value.toString());
+                    }
+                    if (c < widths.length && value != null) {
+                        widths[c] = Math.max(widths[c], value.toString().length());
+                    }
                 }
             }
-            // A fixed width instead of autoSizeColumn, which needs the system's fonts (a server may have none).
-            for (int c = 0; c < header.size(); c++) {
-                sheet.setColumnWidth(c, (c == 0 ? 8 : 24) * 256);
+            // A width from the text length instead of autoSizeColumn, which needs the system's fonts (a server may have none).
+            for (int c = 0; c < widths.length; c++) {
+                sheet.setColumnWidth(c, Math.clamp(widths[c] + 2, 8, 60) * 256);
             }
             book.write(output);
             return output.toByteArray();
