@@ -98,6 +98,12 @@ privat-bank:
 liq-pay:
   base-url: https://www.liqpay.ua
 
+# SMSClub: the token only in application-local.yml or SMS_CLUB_TOKEN; without it the stub sends nothing.
+# only-phones: a list of numbers (380XXXXXXXXX) to send to, for checks on a local database.
+sms-club:
+  base-url: https://im.smsclub.mobi
+  sender: Vidro.ua
+
 # API docs: /swagger-ui.html
 springdoc:
   swagger-ui:

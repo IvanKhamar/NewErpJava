@@ -80,6 +80,8 @@ class OrderActionsTest extends IntegrationTest {
 
     @Test
     void smsChecksTheWaybillNumber() {
+        // No token in the test settings: the stub is registered and says so.
+        assertThat(mvc.get().uri("/sms/settings").session(olena)).bodyJson().isEqualTo("{\"isConfigured\":false}");
         assertThat(sms(1001, "{\"text\":\"Ваша ТТН 20450000000002\"}")).hasStatusOk().bodyJson().isLenientlyEqualTo("""
                 {"sent":false,"message":null,"ttnMismatch":{"ttn":"20450000000002","ttnOrderId":1002}}
                 """);
