@@ -10,8 +10,13 @@ public final class Html {
     private static final Pattern TAG = Pattern.compile("<[^>]*>");
     private static final Pattern SPACES = Pattern.compile("\\s+");
     private static final Pattern ENTITY = Pattern.compile("&(#x[0-9a-fA-F]+|#\\d+|[a-zA-Z]+);");
-    private static final Map<String, String> NAMED = Map.of(
-            "amp", "&", "quot", "\"", "apos", "'", "lt", "<", "gt", ">", "nbsp", " ");
+    private static final Map<String, String> NAMED = Map.ofEntries(
+            Map.entry("amp", "&"), Map.entry("quot", "\""), Map.entry("apos", "'"), Map.entry("lt", "<"), Map.entry("gt", ">"),
+            Map.entry("nbsp", " "), Map.entry("deg", "°"), Map.entry("laquo", "«"), Map.entry("raquo", "»"),
+            Map.entry("ndash", "–"), Map.entry("mdash", "—"), Map.entry("hellip", "…"), Map.entry("lsquo", "‘"),
+            Map.entry("rsquo", "’"), Map.entry("ldquo", "“"), Map.entry("rdquo", "”"), Map.entry("bdquo", "„"),
+            Map.entry("copy", "©"), Map.entry("reg", "®"), Map.entry("trade", "™"), Map.entry("times", "×"),
+            Map.entry("middot", "·"), Map.entry("plusmn", "±"));
 
     private Html() {
     }

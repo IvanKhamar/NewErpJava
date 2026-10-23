@@ -67,6 +67,12 @@ checkbox:
 pre-orders:
   settle-interval-minutes: 60
 
+# The header of the partners' XML feeds; a photo in a feed is {store-url}image/{path}
+partner-feed:
+  shop-name: Vidro
+  company: ""
+  store-url: ""
+
 # PrivatBank statement and LiqPay: accounts and keys only in application-local.yml or environment variables.
 privat-bank:
   base-url: https://acp.privatbank.ua

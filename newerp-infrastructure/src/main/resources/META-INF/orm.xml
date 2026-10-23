@@ -352,6 +352,61 @@
         </attributes>
     </entity>
 
+    <!-- Reseller partners of the old site (structure reconstructed, see db/reconstructed.sql). MyISAM without foreign keys:
+         the mapping rows are deleted by Hibernate together with the partner (cascade on the Hibernate side). -->
+    <entity class="ua.newerp.domain.partners.Partner">
+        <table name="dd_partner"/>
+        <attributes>
+            <id name="id"><column name="partner_id"/><generated-value strategy="IDENTITY"/></id>
+            <basic name="code"/>
+            <basic name="name"/>
+            <basic name="active"><column name="status"/></basic>
+            <basic name="feedUrl"/>
+            <basic name="feedEnabled"/>
+            <basic name="vendorName"/>
+            <basic name="notes"><column name="notes" column-definition="text"/></basic>
+            <basic name="defaultQuantity"/>
+            <basic name="dateAdded"/>
+            <basic name="dateModified"/>
+            <one-to-many name="categoryMap" orphan-removal="true">
+                <order-by>id</order-by>
+                <join-column name="partner_id" nullable="false"/>
+                <cascade><cascade-all/></cascade>
+            </one-to-many>
+            <one-to-many name="productMap" orphan-removal="true">
+                <order-by>id</order-by>
+                <join-column name="partner_id" nullable="false"/>
+                <cascade><cascade-all/></cascade>
+            </one-to-many>
+        </attributes>
+    </entity>
+
+    <entity class="ua.newerp.domain.partners.PartnerCategoryMap">
+        <table name="dd_partner_category_map"/>
+        <attributes>
+            <id name="id"><column name="partner_category_map_id"/><generated-value strategy="IDENTITY"/></id>
+            <basic name="categoryId"/>
+            <basic name="sizeName"/>
+            <basic name="externalId"/>
+            <basic name="externalName"/>
+            <basic name="percentSupply"><column precision="8" scale="2"/></basic>
+            <basic name="percentSale"><column precision="8" scale="2"/></basic>
+        </attributes>
+    </entity>
+
+    <entity class="ua.newerp.domain.partners.PartnerProductMap">
+        <table name="dd_partner_product_map"/>
+        <attributes>
+            <id name="id"><column name="partner_product_map_id"/><generated-value strategy="IDENTITY"/></id>
+            <basic name="productId"/>
+            <basic name="sizeName"/>
+            <basic name="externalId"/>
+            <basic name="externalName"/>
+            <basic name="priceSupply"><column precision="15" scale="4"/></basic>
+            <basic name="priceSale"><column precision="15" scale="4"/></basic>
+        </attributes>
+    </entity>
+
     <!-- Embeddables go after all entities: the XML schema fixes the order of elements. -->
     <embeddable class="ua.newerp.domain.production.ProductionProductLink">
         <attributes>
