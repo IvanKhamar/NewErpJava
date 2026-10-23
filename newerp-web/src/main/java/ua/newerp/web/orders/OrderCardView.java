@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import com.vaadin.flow.component.Component;
+import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.grid.ColumnTextAlign;
@@ -252,7 +253,10 @@ public class OrderCardView extends VerticalLayout implements BeforeEnterObserver
 
     void createReturn() {
         Actions.run(null, () -> new CreateReturnDialog(returns, id, order.products(),
-                returnId -> Messages.success("Повернення №" + returnId + " оформлено.")).open());
+                returnId -> {
+                    Messages.success("Повернення №" + returnId + " оформлено.");
+                    UI.getCurrent().navigate("returns/" + returnId); // the return card's route: returns/:id
+                }).open());
     }
 
     void editComposition() {

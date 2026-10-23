@@ -1,7 +1,6 @@
 package ua.newerp.web.orders;
 
 import java.time.LocalDate;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -35,6 +34,7 @@ import ua.newerp.application.orders.OrderQueries;
 import ua.newerp.application.orders.OrderStatusDto;
 import ua.newerp.web.Access;
 import ua.newerp.web.Fmt;
+import ua.newerp.web.ui.Paging;
 import ua.newerp.web.ui.StatusBadge;
 
 /**
@@ -135,18 +135,7 @@ public class OrderListView extends VerticalLayout {
 
     /** The rows [offset, offset + limit) from the pages of PAGE_SIZE the server gives. */
     List<OrderListItem> fetch(int offset, int limit) {
-        var rows = new ArrayList<OrderListItem>();
-        int page = offset / PAGE_SIZE;
-        int skip = offset % PAGE_SIZE;
-        while (rows.size() < skip + limit) {
-            List<OrderListItem> items = queries.list(filter(page + 1, PAGE_SIZE)).items();
-            rows.addAll(items);
-            if (items.size() < PAGE_SIZE) {
-                break;
-            }
-            page++;
-        }
-        return rows.subList(Math.min(skip, rows.size()), Math.min(skip + limit, rows.size()));
+        return Paging.rows(offset, limit, PAGE_SIZE, page -> queries.list(filter(page, PAGE_SIZE)).items());
     }
 
     private void reload() {
