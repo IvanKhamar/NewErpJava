@@ -19,6 +19,8 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import ua.newerp.application.auth.AuthenticatedUser;
 import ua.newerp.application.common.CreatedId;
+import ua.newerp.application.production.CuttingPlanDto;
+import ua.newerp.application.production.CuttingPlanService;
 import ua.newerp.application.production.ProductionLogDto;
 import ua.newerp.application.production.ProductionLogFilter;
 import ua.newerp.application.production.ProductionModelDto;
@@ -47,11 +49,14 @@ class ProductionController {
     private final ProductionRepository repository;
     private final ProductionService service;
     private final SewingPlanService plan;
+    private final CuttingPlanService cuttingPlan;
 
-    ProductionController(ProductionRepository repository, ProductionService service, SewingPlanService plan) {
+    ProductionController(ProductionRepository repository, ProductionService service, SewingPlanService plan,
+            CuttingPlanService cuttingPlan) {
         this.repository = repository;
         this.service = service;
         this.plan = plan;
+        this.cuttingPlan = cuttingPlan;
     }
 
     @GetMapping("/models")
@@ -106,6 +111,13 @@ class ProductionController {
             + "onlyToSew=false — також розміри, яких вистачає")
     SewingPlanDto plan(@RequestParam(required = false) Boolean onlyToSew) {
         return plan.get(onlyToSew == null || onlyToSew);
+    }
+
+    @GetMapping("/cut-plan")
+    @Operation(summary = "План крою: скільки кожного розміру розкроїти до мінімального запасу моделі (minTotal за частками розмірів) "
+            + "плюс те, чого бракує активним замовленням, і чи вистачить розхідників; onlyToCut=false — також моделі, яких вистачає")
+    CuttingPlanDto cutPlan(@RequestParam(required = false) Boolean onlyToCut) {
+        return cuttingPlan.get(onlyToCut == null || onlyToCut);
     }
 
     @PostMapping("/storefront/sync")

@@ -33,6 +33,11 @@ import ua.newerp.application.production.ProductionRepository;
 import ua.newerp.application.production.ProductionService;
 import ua.newerp.application.production.ProductionSizeDto;
 import ua.newerp.application.production.SaveProductionModelRequest;
+import ua.newerp.application.production.CuttingPlanDto;
+import ua.newerp.application.production.CuttingPlanItemDto;
+import ua.newerp.application.production.CuttingPlanModelDto;
+import ua.newerp.application.production.CuttingPlanService;
+import ua.newerp.application.production.CuttingPlanSizeDto;
 import ua.newerp.application.production.SizeQuantity;
 import ua.newerp.application.production.SetProductionLinksRequest;
 import ua.newerp.application.production.SetSewnBomRequest;
@@ -48,7 +53,7 @@ import ua.newerp.domain.production.ProductionModel;
 import ua.newerp.web.auth.CurrentSession;
 
 /** The production pages with mocked services; the models are invented. */
-@ViewPackages(classes = {ModelListView.class, ProductionLogView.class, SewingPlanView.class})
+@ViewPackages(classes = {ModelListView.class, ProductionLogView.class, SewingPlanView.class, CuttingPlanView.class})
 class ProductionViewsTest extends BrowserlessTest {
 
     final ProductionRepository repository = mock(ProductionRepository.class);
@@ -180,6 +185,30 @@ class ProductionViewsTest extends BrowserlessTest {
         test(view.onlyToSew).click();
 
         assertThat(view.plan.rows()).containsExactly(row);
+    }
+
+    @Test
+    void cuttingPlanShowsSizesAndWarnsAboutMissingConsumables() {
+        var plans = mock(CuttingPlanService.class);
+        var model = new CuttingPlanModelDto(4, "Сукня льняна", 30, new BigDecimal("7"), List.of(
+                new CuttingPlanSizeDto(41, "S", new BigDecimal("40"), 12, BigDecimal.ONE, new BigDecimal("6"), BigDecimal.ONE, new BigDecimal("6")),
+                new CuttingPlanSizeDto(42, "M", new BigDecimal("60"), 18, BigDecimal.ZERO, BigDecimal.TEN, new BigDecimal("7"), BigDecimal.ONE)));
+        var fabric = new CuttingPlanItemDto(1, "Льон бежевий", "м", new BigDecimal("14"), BigDecimal.TEN, new BigDecimal("4"),
+                List.of("Сукня льняна"));
+        when(plans.get(true)).thenReturn(new CuttingPlanDto(List.of(model), List.of(fabric)));
+        when(plans.get(false)).thenReturn(new CuttingPlanDto(List.of(), List.of()));
+        var view = new CuttingPlanView(plans);
+        UI.getCurrent().add(view);
+
+        assertThat(test(view.sizes).size()).isEqualTo(2);
+        assertThat(view.shortage.isVisible()).isTrue();
+        assertThat(view.shortage.getText()).contains("не вистачить розхідників: 1");
+
+        test(view.onlyToCut).click();
+
+        assertThat(view.plan.models()).isEmpty();
+        assertThat(view.sizes.isVisible()).isFalse();
+        assertThat(view.shortage.isVisible()).isFalse();
     }
 
     private static SizeRequest size(String name) {

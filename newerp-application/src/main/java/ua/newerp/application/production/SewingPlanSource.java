@@ -4,9 +4,10 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
+import ua.newerp.domain.production.ProductionComponent;
 import ua.newerp.domain.production.ProductionModel;
 
-/** Data for the sewing plan. */
+/** Data for the sewing and cutting plans. */
 public interface SewingPlanSource {
 
     /** Orders in these statuses with their lines and what each already holds by the sewing log. */
@@ -20,4 +21,10 @@ public interface SewingPlanSource {
 
     /** Models with sizes (read only, no lock). */
     List<ProductionModel> getPlanModels(Collection<Integer> productionIds);
+
+    /** Active models of the "clothing" type with sizes (read only, no lock), for the cutting plan. */
+    List<ProductionModel> getActiveClothingModels();
+
+    /** Components with their cutting BOMs of these models (read only, no lock). */
+    List<ProductionComponent> getComponents(Collection<Integer> productionIds);
 }
