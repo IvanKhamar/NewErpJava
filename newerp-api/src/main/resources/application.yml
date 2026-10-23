@@ -60,8 +60,11 @@ production:
   plan-status-ids: [1, 17, 18, 23, 24, 25]
 # No API keys here: without a key the stub client is used and nothing reaches Nova Poshta.
 # Keys and senders go to application-local.yml (see application-local.example.yml).
+# Open waybill statuses are refreshed every 30 minutes (0: only by the button), the branch directory nightly ("-": never).
 nova-poshta:
   fake-documents: false
+  tracking-interval-minutes: 30
+  warehouses-cron: "0 30 4 * * *"
 # Checkbox: the same, cashier keys only in application-local.yml. Open shifts are checked every 15 minutes (0: never).
 checkbox:
   fake-receipts: false
