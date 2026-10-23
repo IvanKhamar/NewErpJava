@@ -27,7 +27,28 @@ public interface StockRepository {
 
     boolean categoryExists(int categoryId);
 
-    boolean categoryNameTaken(String name);
+    /** Whether another category (not {@code exceptId}) already has this name. */
+    boolean categoryNameTaken(String name, Integer exceptId);
+
+    Optional<StockCategory> findCategory(int categoryId);
+
+    Optional<StockSupplier> findSupplier(int supplierId);
+
+    /** Items of the category, archived ones too (they keep their category_id). */
+    int countItemsInCategory(int categoryId);
+
+    /** Items of the supplier (archived too) plus its purchase orders: what still refers to it. */
+    int countSupplierReferences(int supplierId);
+
+    /** Names of active models whose cutting or sewing BOM takes this item. */
+    List<String> modelsUsingItem(int itemId);
+
+    /** Ids of draft and sent purchase orders with this item. */
+    List<Integer> openPurchaseOrdersWithItem(int itemId);
+
+    void remove(StockCategory category);
+
+    void remove(StockSupplier supplier);
 
     boolean supplierExists(int supplierId);
 

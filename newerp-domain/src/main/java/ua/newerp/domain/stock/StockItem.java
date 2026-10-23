@@ -88,6 +88,18 @@ public class StockItem {
         return delta.signum() == 0 ? null : change(delta, Text.require(comment, "Причина", 255), userId, username, now);
     }
 
+    /**
+     * Archives the item (status = 0, as the old module "deletes"): it leaves the lists, its log stays.
+     * Only an empty item: what is still in stock has to be written off or counted first.
+     */
+    public void archive() {
+        if (quantity.signum() != 0) {
+            throw new DomainException("«" + name + "» не можна прибрати: на складі ще " + text(quantity) + " " + unit
+                    + ". Спершу спишіть залишок.");
+        }
+        active = false;
+    }
+
     public void setMinQuantity(BigDecimal minQuantity) {
         if (isNegative(minQuantity)) {
             throw new DomainException("Мінімальний залишок не може бути від'ємним.");

@@ -3,6 +3,8 @@ package ua.newerp.application.stock;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,12 +30,66 @@ public class StockService {
     }
 
     public int createCategory(CreateStockCategoryRequest request) {
-        StockCategory category = new StockCategory(request.name(), request.sortOrder());
-        if (repository.categoryNameTaken(category.getName())) {
+        StockCategory category = new StockCategory(request.name(), request.sortOrder() == null ? 0 : request.sortOrder());
+        if (repository.categoryNameTaken(category.getName(), null)) {
             throw new DomainException("Категорія \"" + category.getName() + "\" вже існує.");
         }
         repository.add(category);
         return category.getId();
+    }
+
+    public void updateCategory(int categoryId, CreateStockCategoryRequest request) {
+        StockCategory category = repository.findCategory(categoryId)
+                .orElseThrow(() -> new NotFoundException("Категорію " + categoryId + " не знайдено."));
+        category.update(request.name(), request.sortOrder() == null ? category.getSortOrder() : request.sortOrder());
+        if (repository.categoryNameTaken(category.getName(), categoryId)) {
+            throw new DomainException("Категорія \"" + category.getName() + "\" вже існує.");
+        }
+    }
+
+    /** Only an empty category: items keep their category_id even when archived, so they would point nowhere. */
+    public void deleteCategory(int categoryId) {
+        StockCategory category = repository.findCategory(categoryId)
+                .orElseThrow(() -> new NotFoundException("Категорію " + categoryId + " не знайдено."));
+        int items = repository.countItemsInCategory(categoryId);
+        if (items > 0) {
+            throw new DomainException("Категорію \"" + category.getName() + "\" не можна видалити: у ній позицій — " + items
+                    + ". Перенесіть їх в іншу категорію.");
+        }
+        repository.remove(category);
+    }
+
+    public void updateSupplier(int supplierId, CreateStockSupplierRequest request) {
+        requireSupplier(supplierId).update(request.name(), request.phone(), request.email(), request.categories(), request.notes());
+    }
+
+    /** Only a supplier nothing refers to: no items (archived too) and no purchase orders. */
+    public void deleteSupplier(int supplierId) {
+        StockSupplier supplier = requireSupplier(supplierId);
+        if (repository.countSupplierReferences(supplierId) > 0) {
+            throw new DomainException("Постачальника \"" + supplier.getName() + "\" не можна видалити: на нього посилаються позиції "
+                    + "або закупівлі. Змініть постачальника в позиціях.");
+        }
+        repository.remove(supplier);
+    }
+
+    /**
+     * Archives an item (status = 0). Refused while it is in stock, in a BOM of an active model (production would then
+     * not write it off) or in an open purchase order.
+     */
+    public void archiveItem(int itemId) {
+        StockItem item = requireItem(itemId);
+        List<String> models = repository.modelsUsingItem(itemId);
+        if (!models.isEmpty()) {
+            throw new DomainException("«" + item.getName() + "» є в специфікаціях моделей: " + String.join(", ", models)
+                    + ". Спершу приберіть його звідти.");
+        }
+        List<Integer> orders = repository.openPurchaseOrdersWithItem(itemId);
+        if (!orders.isEmpty()) {
+            throw new DomainException("«" + item.getName() + "» є у відкритих закупівлях: "
+                    + orders.stream().map(id -> "#" + id).collect(Collectors.joining(", ")) + ".");
+        }
+        item.archive();
     }
 
     public int createSupplier(CreateStockSupplierRequest request) {
@@ -69,6 +125,11 @@ public class StockService {
 
     public void setMinQuantity(int itemId, BigDecimal minQuantity) {
         requireItem(itemId).setMinQuantity(minQuantity);
+    }
+
+    private StockSupplier requireSupplier(int supplierId) {
+        return repository.findSupplier(supplierId)
+                .orElseThrow(() -> new NotFoundException("Постачальника " + supplierId + " не знайдено."));
     }
 
     private StockItem requireItem(int itemId) {

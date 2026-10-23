@@ -18,6 +18,7 @@ import org.junit.jupiter.api.Test;
 import com.vaadin.browserless.BrowserlessTest;
 import com.vaadin.browserless.ViewPackages;
 import com.vaadin.flow.component.UI;
+import com.vaadin.flow.component.confirmdialog.ConfirmDialog;
 import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.notification.Notification;
 
@@ -105,6 +106,18 @@ class StockViewsTest extends BrowserlessTest {
         test(view.minQuantity).setValue(new BigDecimal("8"));
         test(view.saveMinimum).click();
         verify(service).setMinQuantity(1, new BigDecimal("8"));
+    }
+
+    @Test
+    void itemCardArchivesAfterConfirmation() {
+        var view = new StockItemView(repository, service, session);
+        UI.getCurrent().add(view);
+        view.open(1);
+
+        test(view.archive).click();
+        test(find(ConfirmDialog.class).single()).confirm();
+
+        verify(service).archiveItem(1);
     }
 
     @Test

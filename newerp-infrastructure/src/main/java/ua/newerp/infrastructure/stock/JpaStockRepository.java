@@ -19,6 +19,7 @@ import ua.newerp.application.stock.StockItemFilter;
 import ua.newerp.application.stock.StockMovementDto;
 import ua.newerp.application.stock.StockRepository;
 import ua.newerp.application.stock.StockSupplierDto;
+import ua.newerp.domain.stock.PurchaseOrder;
 import ua.newerp.domain.stock.StockCategory;
 import ua.newerp.domain.stock.StockItem;
 import ua.newerp.domain.stock.StockMovement;
@@ -109,8 +110,67 @@ class JpaStockRepository implements StockRepository {
     }
 
     @Override
-    public boolean categoryNameTaken(String name) {
-        return exists("SELECT COUNT(*) FROM dd_stock_categories WHERE name = :v", name);
+    public boolean categoryNameTaken(String name, Integer exceptId) {
+        em.flush();
+        return jdbc.sql("SELECT COUNT(*) FROM dd_stock_categories WHERE name = :name AND category_id <> :except")
+                .param("name", name)
+                .param("except", exceptId == null ? 0 : exceptId)
+                .query(Integer.class).single() > 0;
+    }
+
+    @Override
+    public Optional<StockCategory> findCategory(int categoryId) {
+        return Optional.ofNullable(em.find(StockCategory.class, categoryId));
+    }
+
+    @Override
+    public Optional<StockSupplier> findSupplier(int supplierId) {
+        return Optional.ofNullable(em.find(StockSupplier.class, supplierId));
+    }
+
+    @Override
+    public int countItemsInCategory(int categoryId) {
+        return jdbc.sql("SELECT COUNT(*) FROM dd_stock_items WHERE category_id = :v").param("v", categoryId).query(Integer.class).single();
+    }
+
+    @Override
+    public int countSupplierReferences(int supplierId) {
+        return jdbc.sql("""
+                SELECT (SELECT COUNT(*) FROM dd_stock_items WHERE supplier_id = :v)
+                     + (SELECT COUNT(*) FROM erp_purchase_order WHERE supplier_id = :v)
+                """).param("v", supplierId).query(Integer.class).single();
+    }
+
+    @Override
+    public List<String> modelsUsingItem(int itemId) {
+        return jdbc.sql("""
+                SELECT DISTINCT p.name FROM dd_stock_production p
+                WHERE p.status = 1 AND (
+                    EXISTS (SELECT 1 FROM dd_stock_production_components c
+                            JOIN dd_stock_production_component_bom b ON b.component_id = c.component_id
+                            WHERE c.production_id = p.production_id AND b.item_id = :v)
+                    OR EXISTS (SELECT 1 FROM dd_stock_production_sewn_bom s WHERE s.production_id = p.production_id AND s.item_id = :v))
+                ORDER BY p.name
+                """).param("v", itemId).query(String.class).list();
+    }
+
+    @Override
+    public List<Integer> openPurchaseOrdersWithItem(int itemId) {
+        return jdbc.sql("""
+                SELECT DISTINCT o.id FROM erp_purchase_order o JOIN erp_purchase_order_line l ON l.order_id = o.id
+                WHERE l.item_id = :v AND o.status IN (:open) ORDER BY o.id
+                """).param("v", itemId).param("open", List.of(PurchaseOrder.DRAFT, PurchaseOrder.ORDERED))
+                .query(Integer.class).list();
+    }
+
+    @Override
+    public void remove(StockCategory category) {
+        em.remove(category);
+    }
+
+    @Override
+    public void remove(StockSupplier supplier) {
+        em.remove(supplier);
     }
 
     @Override

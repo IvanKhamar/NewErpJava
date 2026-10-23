@@ -82,4 +82,29 @@ class StockItemTest {
         assertThat(fabric("4").isBelowMinimum()).isTrue();
         assertThat(fabric("5").isBelowMinimum()).isFalse();
     }
+
+    @Test
+    void onlyAnEmptyItemIsArchived() {
+        StockItem item = fabric("2");
+        assertThatThrownBy(item::archive).hasMessageContaining("на складі ще 2 м");
+        assertThat(item.isActive()).isTrue();
+
+        item.takeUpTo(new BigDecimal("2"), "Крій", 1, "a", NOW);
+        item.archive();
+        assertThat(item.isActive()).isFalse();
+    }
+
+    @Test
+    void supplierAndCategoryAreRenamed() {
+        var supplier = new StockSupplier("ТексМаркет", "", "", "", "");
+        supplier.update("ТексМаркет Україна", "+380441112233", "", "тканини", "");
+        assertThat(supplier.getName()).isEqualTo("ТексМаркет Україна");
+        assertThat(supplier.getPhone()).isEqualTo("+380441112233");
+        assertThatThrownBy(() -> supplier.update(" ", "", "", "", "")).isInstanceOf(DomainException.class);
+
+        var category = new StockCategory("Тканини", 1);
+        category.update("Тканини й трикотаж", 3);
+        assertThat(category.getName()).isEqualTo("Тканини й трикотаж");
+        assertThat(category.getSortOrder()).isEqualTo(3);
+    }
 }
