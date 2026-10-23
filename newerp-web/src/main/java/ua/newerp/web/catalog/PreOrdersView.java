@@ -32,6 +32,7 @@ import ua.newerp.application.catalog.UpdatePreOrderRequest;
 import ua.newerp.domain.catalog.PreOrder;
 import ua.newerp.domain.catalog.SizeAvailability;
 import ua.newerp.web.Access;
+import ua.newerp.web.Fmt;
 import ua.newerp.web.ui.Actions;
 import ua.newerp.web.ui.Messages;
 
@@ -146,6 +147,7 @@ public class PreOrdersView extends VerticalLayout {
             date.setValue(source.dateAvailable());
             date.setClearButtonVisible(true);
             date.setWidth("10rem");
+            date.setLocale(Fmt.UK);
             save.addThemeVariants(ButtonVariant.LUMO_SMALL);
             save.setEnabled(false);
             save.addClickListener(e -> save(this));

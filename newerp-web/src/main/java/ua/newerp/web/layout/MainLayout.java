@@ -18,6 +18,8 @@ import com.vaadin.flow.theme.lumo.LumoUtility;
 
 import ua.newerp.application.auth.CurrentUser;
 import ua.newerp.web.Access;
+import ua.newerp.web.admin.BonusesView;
+import ua.newerp.web.admin.UsersView;
 import ua.newerp.web.auth.ChangePasswordView;
 import ua.newerp.web.auth.CurrentSession;
 import ua.newerp.web.catalog.PreOrdersView;
@@ -108,6 +110,10 @@ public class MainLayout extends AppLayout implements BeforeEnterObserver {
         if (session.hasAnyRole(Access.FINANCE)) {
             nav.addItem(new SideNavItem("Каса", CashboxView.class, VaadinIcon.CASH.create()));
             nav.addItem(new SideNavItem("Надходження на рахунок", BankPaymentsView.class, VaadinIcon.PIGGY_BANK.create()));
+        }
+        if (session.hasAnyRole(Access.ADMIN)) {
+            nav.addItem(new SideNavItem("Бонуси менеджерів", BonusesView.class, VaadinIcon.TROPHY.create()));
+            nav.addItem(new SideNavItem("Користувачі", UsersView.class, VaadinIcon.USER_CARD.create()));
         }
         return nav;
     }
