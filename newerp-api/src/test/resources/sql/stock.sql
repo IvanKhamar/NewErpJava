@@ -1,5 +1,6 @@
 -- Invented consumables for the stock tests (run after users.sql).
 DELETE FROM erp_purchase_order_line; DELETE FROM erp_purchase_order; DELETE FROM dd_stock_log;
+DELETE FROM erp_stock_location; DELETE FROM erp_stock_transfer;
 DELETE FROM dd_stock_items; DELETE FROM dd_stock_categories; DELETE FROM dd_stock_suppliers;
 
 INSERT INTO dd_stock_categories (category_id, name, sort_order) VALUES (1, 'Тканини', 1), (2, 'Фурнітура', 2);

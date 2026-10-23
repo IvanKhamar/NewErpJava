@@ -79,6 +79,32 @@
         </attributes>
     </entity>
 
+    <!-- Stock per warehouse: our own tables. The main stock is the remainder of dd_stock_items.stock, it has no row. -->
+    <entity class="ua.newerp.domain.stock.StockBalance">
+        <table name="erp_stock_location"/>
+        <attributes>
+            <id name="id"><generated-value strategy="IDENTITY"/></id>
+            <basic name="itemId"/>
+            <basic name="warehouseId"/>
+            <basic name="quantity"><column name="quantity" precision="12" scale="3"/></basic>
+        </attributes>
+    </entity>
+
+    <entity class="ua.newerp.domain.stock.StockTransfer">
+        <table name="erp_stock_transfer"/>
+        <attributes>
+            <id name="id"><generated-value strategy="IDENTITY"/></id>
+            <basic name="itemId"/>
+            <basic name="fromWarehouseId"/>
+            <basic name="toWarehouseId"/>
+            <basic name="quantity"><column name="quantity" precision="12" scale="3"/></basic>
+            <basic name="comment"/>
+            <basic name="userId"/>
+            <basic name="username"/>
+            <basic name="createdAt"/>
+        </attributes>
+    </entity>
+
     <!-- Supplier orders: our own tables erp_purchase_order*; the old site has nothing like it. -->
     <entity class="ua.newerp.domain.stock.PurchaseOrder">
         <table name="erp_purchase_order"/>

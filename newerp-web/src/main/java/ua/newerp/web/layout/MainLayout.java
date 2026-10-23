@@ -42,6 +42,7 @@ import ua.newerp.web.production.ProductionLogView;
 import ua.newerp.web.production.SewingPlanView;
 import ua.newerp.web.stock.PurchaseOrderListView;
 import ua.newerp.web.stock.ReorderView;
+import ua.newerp.web.stock.StockByWarehouseView;
 import ua.newerp.web.stock.StockListView;
 import ua.newerp.web.stock.StockReportsView;
 import ua.newerp.web.stock.StocktakingView;
@@ -90,6 +91,7 @@ public class MainLayout extends AppLayout implements BeforeEnterObserver {
         nav.addItem(new SideNavItem("Головна", HomeView.class, VaadinIcon.HOME.create()));
         if (session.hasAnyRole(Access.STOCK)) {
             nav.addItem(new SideNavItem("Розхідники", StockListView.class, VaadinIcon.STORAGE.create()));
+            nav.addItem(new SideNavItem("Залишки за складами", StockByWarehouseView.class, VaadinIcon.CUBES.create()));
             nav.addItem(new SideNavItem("Інвентаризація", StocktakingView.class, VaadinIcon.CLIPBOARD_CHECK.create()));
             nav.addItem(new SideNavItem("Що дозамовити", ReorderView.class, VaadinIcon.LIST.create()));
             nav.addItem(new SideNavItem("Закупівлі", PurchaseOrderListView.class, VaadinIcon.PACKAGE.create()));

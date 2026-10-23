@@ -27,14 +27,20 @@ import com.vaadin.flow.theme.lumo.LumoUtility;
 
 import ua.newerp.application.auth.CurrentUser;
 import ua.newerp.application.common.LookupItem;
+import ua.newerp.application.locations.LocationDto;
+import ua.newerp.application.locations.LocationService;
 import ua.newerp.application.stock.AdjustStockRequest;
 import ua.newerp.application.stock.ApplyStocktakingRequest;
 import ua.newerp.application.stock.CategoryValueDto;
 import ua.newerp.application.stock.ItemConsumptionDto;
+import ua.newerp.application.stock.ItemPlacementDto;
 import ua.newerp.application.stock.ModelOutputDto;
+import ua.newerp.application.stock.PlaceDto;
 import ua.newerp.application.stock.SizeOutputDto;
+import ua.newerp.application.stock.StockByWarehouseDto;
 import ua.newerp.application.stock.StockItemDto;
 import ua.newerp.application.stock.StockItemFilter;
+import ua.newerp.application.stock.StockLocationService;
 import ua.newerp.application.stock.StockMovementDto;
 import ua.newerp.application.stock.StockReportDto;
 import ua.newerp.application.stock.StockReportService;
@@ -45,16 +51,19 @@ import ua.newerp.application.stock.StocktakingLineDto;
 import ua.newerp.application.stock.StocktakingPreviewDto;
 import ua.newerp.application.stock.StocktakingResult;
 import ua.newerp.application.stock.StocktakingService;
+import ua.newerp.application.stock.TransferStockRequest;
 import ua.newerp.web.Fmt;
 import ua.newerp.web.auth.CurrentSession;
 
 /** The stock pages with mocked services; the materials are invented. */
-@ViewPackages(classes = {StockListView.class, StockItemView.class, StocktakingView.class, StockReportsView.class})
+@ViewPackages(classes = {StockListView.class, StockItemView.class, StocktakingView.class, StockReportsView.class, StockByWarehouseView.class})
 class StockViewsTest extends BrowserlessTest {
 
     final StockRepository repository = mock(StockRepository.class);
     final StockService service = mock(StockService.class);
     final CurrentSession session = mock(CurrentSession.class);
+    final StockLocationService locations = mock(StockLocationService.class);
+    final LocationService warehouses = mock(LocationService.class);
     final StockItemDto linen = new StockItemDto(1, "Льон бежевий", "м", 1, "Тканини", null, null, new BigDecimal("4.5"),
             new BigDecimal("10"), true, "Сукні", new BigDecimal("320"));
     final StockItemDto thread = new StockItemDto(2, "Нитки білі", "шт", 2, "Фурнітура", null, null, new BigDecimal("40"),
@@ -66,6 +75,8 @@ class StockViewsTest extends BrowserlessTest {
         when(repository.listItems(any(StockItemFilter.class))).thenReturn(List.of(linen, thread));
         when(repository.getItemDto(1)).thenReturn(Optional.of(linen));
         when(session.user()).thenReturn(Optional.of(new CurrentUser(3, "taras", "Тарас Мельник", "Storekeeper", false)));
+        when(locations.get(1)).thenReturn(new ItemPlacementDto(1, "Льон бежевий", "м", new BigDecimal("4.5"),
+                List.of(new PlaceDto(null, StockLocationService.MAIN_NAME, new BigDecimal("4.5")))));
     }
 
     @Test
@@ -108,7 +119,7 @@ class StockViewsTest extends BrowserlessTest {
 
     @Test
     void itemCardShowsTheStock() {
-        var view = new StockItemView(repository, service, session);
+        var view = new StockItemView(repository, service, locations, warehouses, session);
         UI.getCurrent().add(view);
         view.open(1);
 
@@ -120,7 +131,7 @@ class StockViewsTest extends BrowserlessTest {
 
     @Test
     void itemCardArchivesAfterConfirmation() {
-        var view = new StockItemView(repository, service, session);
+        var view = new StockItemView(repository, service, locations, warehouses, session);
         UI.getCurrent().add(view);
         view.open(1);
 
@@ -187,5 +198,64 @@ class StockViewsTest extends BrowserlessTest {
         view.coverDays.setValue(90);
         verify(reports).get(30, 90);
         assertThat(view.output.getGenericDataView().getItems()).hasSize(1);
+    }
+
+    @Test
+    void itemCardShowsThePlacesAndMovesAndUsesAtAWarehouse() {
+        when(warehouses.list(null)).thenReturn(List.of(new LocationDto(901, "Цех", "", "", "", "", "", ""),
+                new LocationDto(902, "Б-склад", "", "", "", "", "", "")));
+        when(locations.get(1)).thenReturn(new ItemPlacementDto(1, "Льон бежевий", "м", new BigDecimal("4.5"),
+                List.of(new PlaceDto(null, StockLocationService.MAIN_NAME, new BigDecimal("3")), new PlaceDto(901, "Цех", new BigDecimal("1.5")))));
+        when(locations.adjust(any(Integer.class), any(Integer.class), any(AdjustStockRequest.class), any(Integer.class), any(String.class)))
+                .thenReturn(new StockMovementDto(9, 1, new BigDecimal("-1"), new BigDecimal("4.5"), new BigDecimal("3.5"), "Крій · Цех", 3,
+                        "taras", LocalDateTime.now()));
+        var view = new StockItemView(repository, service, locations, warehouses, session);
+        UI.getCurrent().add(view);
+        view.open(1);
+
+        // the main stock first, then every warehouse by name, also one without this material
+        assertThat(view.places).extracting(PlaceDto::name).containsExactly(StockLocationService.MAIN_NAME, "Б-склад", "Цех");
+        assertThat(view.transfer.isVisible()).isTrue();
+
+        test(view.transfer).click();
+        var move = find(TransferStockDialog.class).single();
+        move.to.setValue(view.places.get(2));
+        test(move.quantity).setValue(new BigDecimal("2"));
+        test(move.save).click();
+        verify(locations).transfer(1, new TransferStockRequest(null, 901, new BigDecimal("2"), ""), 3, "taras");
+
+        test(view.adjust).click();
+        var use = find(AdjustStockDialog.class).single();
+        test(use.kind).selectItem(AdjustStockDialog.USE);
+        use.place.setValue(view.places.get(2));
+        test(use.quantity).setValue(BigDecimal.ONE);
+        test(use.reason).setValue("Крій");
+        test(use.save).click();
+        verify(locations).adjust(1, 901, new AdjustStockRequest(new BigDecimal("-1"), "Крій"), 3, "taras");
+        verify(service, never()).adjust(any(Integer.class), any(AdjustStockRequest.class), any(Integer.class), any(String.class));
+    }
+
+    @Test
+    void withoutWarehousesThereIsNothingToMove() {
+        var view = new StockItemView(repository, service, locations, warehouses, session);
+        UI.getCurrent().add(view);
+        view.open(1);
+
+        assertThat(view.transfer.isVisible()).isFalse();
+        assertThat(view.places).hasSize(1);
+    }
+
+    @Test
+    void overviewHasAColumnPerPlace() {
+        when(locations.byWarehouse()).thenReturn(new StockByWarehouseDto(
+                List.of(new StockByWarehouseDto.Place(null, StockLocationService.MAIN_NAME, new BigDecimal("960")),
+                        new StockByWarehouseDto.Place(901, "Цех", new BigDecimal("480"))),
+                List.of(new StockByWarehouseDto.Row(1, "Льон бежевий", "м", "Тканини", new BigDecimal("4.5"),
+                        List.of(new BigDecimal("3"), new BigDecimal("1.5"))))));
+        var view = new StockByWarehouseView(locations);
+        UI.getCurrent().add(view);
+
+        assertThat(view.grid.getColumns()).hasSize(5);
+        assertThat(test(view.grid).getCellText(0, 4)).isEqualTo("1,5");
     }
 }
