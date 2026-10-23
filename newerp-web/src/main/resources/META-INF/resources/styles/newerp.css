@@ -1,0 +1,40 @@
+/* NewErp styles on top of the Lumo theme */
+
+.status-badge {
+    display: inline-block;
+    padding: 0.1em 0.6em;
+    border-radius: 1em;
+    border: 1px solid rgba(0, 0, 0, 0.15);
+    background-color: var(--lumo-contrast-10pct);
+    font-size: var(--lumo-font-size-s);
+    white-space: nowrap;
+}
+
+.section-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: var(--lumo-space-m);
+    width: 100%;
+}
+
+.section-card {
+    display: block;
+    padding: var(--lumo-space-m);
+    border: 1px solid var(--lumo-contrast-10pct);
+    border-radius: var(--lumo-border-radius-l);
+    color: inherit;
+    text-decoration: none;
+}
+
+.section-card:hover {
+    background-color: var(--lumo-contrast-5pct);
+}
+
+.section-card h3 {
+    margin: 0 0 var(--lumo-space-s);
+}
+
+.section-card p {
+    margin: 0;
+    color: var(--lumo-secondary-text-color);
+}

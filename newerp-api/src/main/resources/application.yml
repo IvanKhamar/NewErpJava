@@ -24,6 +24,10 @@ spring:
       date: iso
       date-time: iso
 
+# The Vaadin UI lives under /ui/ (the Blazor UI stays under /app/, the API at the root)
+vaadin:
+  url-mapping: /ui/*
+
 # Session cookie, same rules as the .NET auth cookie
 server:
   servlet:

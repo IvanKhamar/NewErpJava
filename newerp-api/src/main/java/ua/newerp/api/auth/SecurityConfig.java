@@ -43,7 +43,8 @@ class SecurityConfig {
                 .securityContext(c -> c.securityContextRepository(contexts))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.POST, "/auth/login").permitAll()
-                        .requestMatchers("/health", "/error", "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**", "/app/**")
+                        .requestMatchers("/health", "/error", "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**", "/app/**",
+                                "/", "/favicon.ico", "/styles/**", "/lumo/**")
                         .permitAll()
                         // The partner's site fetches its feed without a login, as on the old site.
                         .requestMatchers(HttpMethod.GET, "/feeds/*.xml").permitAll()
