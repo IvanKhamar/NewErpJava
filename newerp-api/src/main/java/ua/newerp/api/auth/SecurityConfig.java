@@ -52,7 +52,7 @@ class SecurityConfig {
                         .requestMatchers(HttpMethod.PUT, "/cashbox/cashiers/*").hasRole(Roles.ADMIN)
                         .requestMatchers("/cashbox/warehouses/**", "/cashbox/requisites/**").hasRole(Roles.ADMIN)
                         .requestMatchers("/orders/**", "/delivery/**", "/cashbox/**", "/payments/**", "/preorders/**",
-                                "/partners/**", "/catalog/sort/**", "/customers/**", "/returns/**",
+                                "/partners/**", "/catalog/sort/**", "/catalog/crosssell/**", "/customers/**", "/returns/**",
                                 "/locations/**", "/reports/**", "/marketing/**", "/sms/**").hasAnyRole(Roles.ADMIN, Roles.MANAGER)
                         .requestMatchers("/stock/**", "/production/**").hasAnyRole(Roles.ADMIN, Roles.STOREKEEPER)
                         .requestMatchers("/staff/bonuses", "/users/**").hasRole(Roles.ADMIN)
