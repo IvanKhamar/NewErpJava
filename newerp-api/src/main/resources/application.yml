@@ -78,6 +78,14 @@ product-sort:
   new-label-name: Новинка
   default-days: 90
 
+# Birthday greetings: the coupon's discount and term, the pickup city, a pause between bulk SMS
+marketing:
+  birthday-discount-percent: 20
+  birthday-coupon-days: 30
+  pickup-city: Львів
+  pickup-method-marker: амовив
+  bulk-sms-delay-milliseconds: 300
+
 # The header of the partners' XML feeds; a photo in a feed is {store-url}image/{path}
 partner-feed:
   shop-name: Vidro

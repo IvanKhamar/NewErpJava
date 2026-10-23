@@ -52,7 +52,7 @@ class SecurityConfig {
                         .requestMatchers("/cashbox/warehouses/**", "/cashbox/requisites/**").hasRole(Roles.ADMIN)
                         .requestMatchers("/orders/**", "/delivery/**", "/cashbox/**", "/payments/**", "/preorders/**",
                                 "/partners/**", "/catalog/sort/**", "/customers/**", "/returns/**",
-                                "/locations/**", "/reports/**").hasAnyRole(Roles.ADMIN, Roles.MANAGER)
+                                "/locations/**", "/reports/**", "/marketing/**").hasAnyRole(Roles.ADMIN, Roles.MANAGER)
                         .requestMatchers("/stock/**", "/production/**").hasAnyRole(Roles.ADMIN, Roles.STOREKEEPER)
                         .requestMatchers("/staff/bonuses", "/users/**").hasRole(Roles.ADMIN)
                         // Everything else needs a login, so a new endpoint cannot stay open by accident.
