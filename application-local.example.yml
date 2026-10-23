@@ -24,3 +24,7 @@ nova-poshta:
 #      city-ref: ...
 #      address-ref: ...
 #      is-default: true
+
+# Web UI: the published Blazor app (dotnet publish src/NewErp.Web -c Release -o <folder>), see README.
+#newerp:
+#  web-root: F:/PROJECTS/newerp-web/wwwroot
