@@ -36,11 +36,14 @@ public class OrderSewnStockHandler implements OrderStatusHandler {
     }
 
     private final ProductionRepository repository;
+    private final StorefrontStock storefront;
     private final ProductionProperties properties;
     private final Clock clock;
 
-    public OrderSewnStockHandler(ProductionRepository repository, ProductionProperties properties, Clock clock) {
+    public OrderSewnStockHandler(ProductionRepository repository, StorefrontStock storefront, ProductionProperties properties,
+            Clock clock) {
         this.repository = repository;
+        this.storefront = storefront;
         this.properties = properties;
         this.clock = clock;
     }
@@ -95,6 +98,8 @@ public class OrderSewnStockHandler implements OrderStatusHandler {
         } else {
             giveBack(change, bySize, held, now);
         }
+        // The site itself lowers the stock only when an order is placed on the storefront, so after a change in NewErp it is passed
+        storefront.push(bySize.keySet().stream().map(k -> k.model().getId()).distinct().toList());
         return warnings;
     }
 

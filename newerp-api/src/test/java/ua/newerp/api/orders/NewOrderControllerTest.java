@@ -21,7 +21,7 @@ import com.jayway.jsonpath.JsonPath;
 import ua.newerp.IntegrationTest;
 import ua.newerp.domain.orders.CustomerRiskLevel;
 
-@Sql({"/sql/users.sql", "/sql/stock.sql", "/sql/production.sql", "/sql/orders.sql", "/sql/new-order.sql"})
+@Sql({"/sql/users.sql", "/sql/stock.sql", "/sql/production.sql", "/sql/orders.sql", "/sql/catalog.sql", "/sql/new-order.sql"})
 class NewOrderControllerTest extends IntegrationTest {
 
     @Autowired

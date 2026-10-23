@@ -41,10 +41,12 @@ import ua.newerp.domain.stock.StockMovement;
 public class ProductionService {
 
     private final ProductionRepository repository;
+    private final StorefrontStock storefront;
     private final Clock clock;
 
-    public ProductionService(ProductionRepository repository, Clock clock) {
+    public ProductionService(ProductionRepository repository, StorefrontStock storefront, Clock clock) {
         this.repository = repository;
+        this.storefront = storefront;
         this.clock = clock;
     }
 
@@ -91,7 +93,16 @@ public class ProductionService {
             }
         }
 
+        // As in the old module: after the sewn stock changes it goes to the storefront at once
+        if (operation == ProductionOperation.SEWN || operation == ProductionOperation.SHIP) {
+            storefront.push(List.of(productionId));
+        }
         return new ProductionOperationResult(changes, consumption == null ? List.of() : consumption.warnings);
+    }
+
+    /** Passes the sewn stock of all active models to the storefront (for example, after changes on the old site). */
+    public StorefrontSyncResult pushStorefront() {
+        return storefront.push(null);
     }
 
     private Consumption loadConsumption(ProductionModel model) {
@@ -220,6 +231,7 @@ public class ProductionService {
         model.setSizeOptions(request.sizeOptions().stream()
                 .map(o -> new ProductionModel.SizeOption(o.sizeId(), o.optionValueId()))
                 .toList());
+        storefront.push(List.of(productionId));
     }
 
     public int addComponent(int productionId, SaveComponentRequest request) {
