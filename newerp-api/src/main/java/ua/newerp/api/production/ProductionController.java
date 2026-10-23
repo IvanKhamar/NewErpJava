@@ -130,7 +130,8 @@ class ProductionController {
 
     @PostMapping("/models/{id:\\d+}/stocktaking")
     @Operation(summary = "Інвентаризація моделі: розкроєне й пошите кожного розміру та залишки деталей стають порахованими; "
-            + "різниця розмірів іде в журнал з коментарем «Інвентаризація», пошите — на вітрину; з помилкою нічого не записується")
+            + "різниця розмірів іде в журнал з коментарем «Інвентаризація», пошите — на вітрину; з помилкою нічого не записується. "
+            + "З warehouseId рахують лише пошите на цьому складі")
     ProductionStocktakingResult stocktaking(@PathVariable int id, @RequestBody ProductionStocktakingRequest request,
             @AuthenticationPrincipal AuthenticatedUser user) {
         return service.recount(id, request, user.user().userId(), user.user().username());
@@ -151,14 +152,15 @@ class ProductionController {
     }
 
     @PostMapping("/models/{id:\\d+}/sewn")
-    @Operation(summary = "+Пошито: пошиті вироби зростають, деталі й розхідники списуються за специфікацією пошиву")
+    @Operation(summary = "+Пошито: пошиті вироби зростають, деталі й розхідники списуються за специфікацією пошиву; "
+            + "з warehouseId вироби лягають на цей склад")
     ProductionOperationResult sewn(@PathVariable int id, @RequestBody ProductionOperationRequest request,
             @AuthenticationPrincipal AuthenticatedUser user) {
         return record(id, ProductionOperation.SEWN, request, user);
     }
 
     @PostMapping("/models/{id:\\d+}/ship")
-    @Operation(summary = "Відвантажено не через замовлення (більше, ніж пошито, не можна)")
+    @Operation(summary = "Відвантажено не через замовлення (більше, ніж пошито, не можна); з warehouseId — з цього складу")
     ProductionOperationResult ship(@PathVariable int id, @RequestBody ProductionOperationRequest request,
             @AuthenticationPrincipal AuthenticatedUser user) {
         return record(id, ProductionOperation.SHIP, request, user);

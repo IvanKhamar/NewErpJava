@@ -22,11 +22,15 @@ import com.vaadin.flow.router.RouterLink;
 import com.vaadin.flow.theme.lumo.LumoUtility;
 
 import jakarta.annotation.security.RolesAllowed;
+import ua.newerp.application.locations.LocationDto;
+import ua.newerp.application.locations.LocationService;
+import ua.newerp.application.production.ProductionLocationService;
 import ua.newerp.application.production.ProductionLogFilter;
 import ua.newerp.application.production.ProductionModelDto;
 import ua.newerp.application.production.ProductionRepository;
 import ua.newerp.application.production.ProductionService;
 import ua.newerp.application.production.ProductionSizeDto;
+import ua.newerp.application.production.SizePlacesDto;
 import ua.newerp.application.stock.StockItemFilter;
 import ua.newerp.application.stock.StockRepository;
 import ua.newerp.web.Access;
@@ -50,20 +54,28 @@ public class ModelCardView extends VerticalLayout implements BeforeEnterObserver
     private final ProductionRepository repository;
     private final ProductionService service;
     private final StockRepository stock;
+    private final ProductionLocationService locations;
+    private final LocationService warehouses;
     private final CurrentSession session;
     private int id;
     private ProductionModelDto model;
+    private List<LocationDto> warehouseList = List.of();
+    private List<SizePlacesDto> places = List.of();
 
-    public ModelCardView(ProductionRepository repository, ProductionService service, StockRepository stock, CurrentSession session) {
+    public ModelCardView(ProductionRepository repository, ProductionService service, StockRepository stock,
+            ProductionLocationService locations, LocationService warehouses, CurrentSession session) {
         this.repository = repository;
         this.service = service;
         this.stock = stock;
+        this.locations = locations;
+        this.warehouses = warehouses;
         this.session = session;
         edit.addClickListener(e -> new ModelDialog(service, model, saved -> {
             Messages.success("Зміни збережено.");
             open(id);
         }).open());
-        stocktaking.addClickListener(e -> new ModelStocktakingDialog(service, model, session.user().orElseThrow(), done -> open(id)).open());
+        stocktaking.addClickListener(e -> new ModelStocktakingDialog(service, model, warehouseList, places,
+                session.user().orElseThrow(), done -> open(id)).open());
         deactivate.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_ERROR);
         deactivate.addClickListener(e -> Confirm.ask("Прибрати модель?",
                 "Модель зникне зі списків (як і на старому сайті, дані не видаляються).", "Прибрати", "Ні", this::deactivate));
@@ -106,12 +118,18 @@ public class ModelCardView extends VerticalLayout implements BeforeEnterObserver
             total.add(badge);
         }
 
+        warehouseList = warehouses.list(null);
+        places = warehouseList.isEmpty() ? List.of() : locations.get(id);
         int selected = tabs.getSelectedIndex(); // a reload keeps the open tab
         tabs = new TabSheet();
         tabs.setWidthFull();
-        operations = new OperationPanel(service, model, session.user().orElseThrow(), () -> open(id));
+        var user = session.user().orElseThrow();
+        operations = new OperationPanel(service, model, warehouseList, user, () -> open(id));
         operations.showWarnings(warnings);
         tabs.add("Залишки й операції", operations);
+        if (!warehouseList.isEmpty()) {
+            tabs.add("За складами", new SewnPlacesPanel(locations, id, places, warehouseList, user, () -> open(id)));
+        }
         tabs.add("Специфікації", new SpecificationsPanel(service, model,
                 () -> stock.listItems(new StockItemFilter(null, null)), () -> open(id)));
         tabs.add("Прив'язка до магазину", new LinksPanel(service, model, () -> open(id)));

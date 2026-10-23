@@ -1,4 +1,5 @@
 -- Invented garment models for the production tests (run after users.sql and stock.sql).
+DELETE FROM erp_production_location; DELETE FROM erp_production_transfer;
 DELETE FROM dd_stock_production_log; DELETE FROM dd_stock_production_component_stock;
 DELETE FROM dd_stock_production_component_bom; DELETE FROM dd_stock_production_sewn_bom;
 DELETE FROM dd_stock_production_components; DELETE FROM dd_stock_production_products;

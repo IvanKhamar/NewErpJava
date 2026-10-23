@@ -20,6 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import ua.newerp.application.common.NotFoundException;
+import ua.newerp.application.locations.LocationStore;
 import ua.newerp.domain.common.DomainException;
 import ua.newerp.domain.production.BomResolver;
 import ua.newerp.domain.production.ComponentBomLine;
@@ -29,6 +30,7 @@ import ua.newerp.domain.production.ProductionLogEntry;
 import ua.newerp.domain.production.ProductionModel;
 import ua.newerp.domain.production.ProductionSize;
 import ua.newerp.domain.production.SewnBomLine;
+import ua.newerp.domain.production.SewnPlacement;
 import ua.newerp.domain.stock.StockItem;
 import ua.newerp.domain.stock.StockMovement;
 import ua.newerp.domain.stock.Stocktaking;
@@ -43,11 +45,16 @@ public class ProductionService {
 
     private final ProductionRepository repository;
     private final StorefrontStock storefront;
+    private final SewnLocationRepository locations;
+    private final LocationStore warehouses;
     private final Clock clock;
 
-    public ProductionService(ProductionRepository repository, StorefrontStock storefront, Clock clock) {
+    public ProductionService(ProductionRepository repository, StorefrontStock storefront, SewnLocationRepository locations,
+            LocationStore warehouses, Clock clock) {
         this.repository = repository;
         this.storefront = storefront;
+        this.locations = locations;
+        this.warehouses = warehouses;
         this.clock = clock;
     }
 
@@ -68,6 +75,20 @@ public class ProductionService {
             throw new DomainException("Розмір " + dup.sizeId() + " указано двічі.");
         });
 
+        Integer warehouseId = request.warehouseId();
+        if (warehouseId != null) {
+            if (operation != ProductionOperation.SEWN && operation != ProductionOperation.SHIP) {
+                throw new DomainException("Склад вказують лише для пошитого й відвантаженого: крій живе на основному складі.");
+            }
+            if (warehouses.get(warehouseId).isEmpty()) {
+                throw new NotFoundException("Склад " + warehouseId + " не знайдено.");
+            }
+        }
+        // Sewn pieces have places: a shipment from the main stock must not take what lies at the warehouses
+        SewnPlacement placement = operation == ProductionOperation.SEWN || operation == ProductionOperation.SHIP
+                ? new SewnPlacement(model, locations.findBalances(productionId))
+                : null;
+
         LocalDateTime now = LocalDateTime.now(clock);
         Consumption consumption = operation == ProductionOperation.CUT || operation == ProductionOperation.SEWN
                 ? loadConsumption(model)
@@ -81,8 +102,8 @@ public class ProductionService {
             ProductionLogEntry entry = switch (operation) {
                 case CUT -> model.recordCut(sizeId, quantity, request.comment(), userId, username, now);
                 case SEND_TO_SEWING -> model.sendToSewing(sizeId, quantity, request.comment(), userId, username, now);
-                case SEWN -> model.recordSewn(sizeId, quantity, request.comment(), userId, username, now);
-                case SHIP -> model.ship(sizeId, quantity, request.comment(), userId, username, now);
+                case SEWN -> placement.sewnAt(sizeId, warehouseId, quantity, request.comment(), userId, username, now);
+                case SHIP -> placement.shipFrom(sizeId, warehouseId, quantity, request.comment(), userId, username, now);
             };
             repository.add(entry);
             changes.add(new SizeChangeDto(sizeId, entry.getSizeName(), entry.getStockBefore(), entry.getStockAfter()));
@@ -94,6 +115,9 @@ public class ProductionService {
             }
         }
 
+        if (placement != null) {
+            placement.created().forEach(locations::add);
+        }
         // As in the old module: after the sewn stock changes it goes to the storefront at once
         if (operation == ProductionOperation.SEWN || operation == ProductionOperation.SHIP) {
             storefront.push(List.of(productionId));
@@ -120,15 +144,33 @@ public class ProductionService {
                 .ifPresent(dup -> {
                     throw new DomainException("Деталь " + dup.componentId() + " розміру " + dup.sizeId() + " указано двічі.");
                 });
+        Integer warehouseId = request.warehouseId();
+        if (warehouseId != null) {
+            if (!request.components().isEmpty() || request.sizes().stream().anyMatch(r -> r.cut() != null)) {
+                throw new DomainException("На складі рахують лише пошите: крій і деталі живуть на основному складі.");
+            }
+            if (warehouses.get(warehouseId).isEmpty()) {
+                throw new NotFoundException("Склад " + warehouseId + " не знайдено.");
+            }
+        }
         String comment = Stocktaking.comment(request.comment());
 
         LocalDateTime now = LocalDateTime.now(clock);
         var cut = new ArrayList<SizeChangeDto>();
         var sewn = new ArrayList<SizeChangeDto>();
+        // Sewn pieces are counted at one place (the main stock unless a warehouse is given); the rest of the places stay
+        var placement = new SewnPlacement(model, locations.findBalances(productionId));
         for (SizeCountRequest row : request.sizes()) {
             recountStage(model, row.sizeId(), ProductionLogEntry.CUT, row.cut(), comment, userId, username, now, cut);
-            recountStage(model, row.sizeId(), ProductionLogEntry.SEWN, row.sewn(), comment, userId, username, now, sewn);
+            if (row.sewn() != null) {
+                ProductionLogEntry entry = placement.recountAt(row.sizeId(), warehouseId, row.sewn(), comment, userId, username, now);
+                if (entry != null) {
+                    repository.add(entry);
+                    sewn.add(new SizeChangeDto(row.sizeId(), entry.getSizeName(), entry.getStockBefore(), entry.getStockAfter()));
+                }
+            }
         }
+        placement.created().forEach(locations::add);
 
         int components = 0;
         if (!request.components().isEmpty()) {
