@@ -30,19 +30,39 @@ import com.vaadin.flow.component.notification.Notification;
 import ua.newerp.application.auth.CurrentUser;
 import ua.newerp.application.cashbox.CashboxService;
 import ua.newerp.application.common.LookupItem;
+import ua.newerp.application.delivery.CityDto;
+import ua.newerp.application.delivery.CreateShipmentRequest;
+import ua.newerp.application.delivery.DropoffPointOption;
+import ua.newerp.application.delivery.SenderOption;
 import ua.newerp.application.delivery.ShipmentDto;
+import ua.newerp.application.delivery.ShipmentFormDto;
 import ua.newerp.application.delivery.ShipmentRepository;
 import ua.newerp.application.delivery.ShipmentService;
+import ua.newerp.application.delivery.WarehouseDto;
 import ua.newerp.application.orders.AssignManagerRequest;
 import ua.newerp.application.orders.ChangeOrderStatusRequest;
 import ua.newerp.application.orders.ChangeOrderStatusResult;
+import ua.newerp.application.orders.NewOrderLineRequest;
+import ua.newerp.application.orders.NewOrderService;
+import ua.newerp.application.orders.OrderCompositionDto;
+import ua.newerp.application.orders.OrderCompositionLine;
 import ua.newerp.application.orders.OrderDetails;
 import ua.newerp.application.orders.OrderProductLine;
 import ua.newerp.application.orders.OrderQueries;
 import ua.newerp.application.orders.OrderService;
 import ua.newerp.application.orders.OrderStatusDto;
 import ua.newerp.application.orders.OrderStatusHistoryEntry;
+import ua.newerp.application.orders.ProductOptionValueDto;
+import ua.newerp.application.orders.UpdateOrderCompositionRequest;
+import ua.newerp.application.orders.UpdateOrderCompositionResult;
 import ua.newerp.application.payments.BankPaymentService;
+import ua.newerp.application.payments.CreatePaymentLinkRequest;
+import ua.newerp.application.payments.LiqPayService;
+import ua.newerp.application.payments.PaymentLinkDto;
+import ua.newerp.application.returns.CreateReturnRequest;
+import ua.newerp.application.returns.ReturnLookupItem;
+import ua.newerp.application.returns.ReturnLookupsDto;
+import ua.newerp.application.returns.ReturnService;
 import ua.newerp.application.sms.SendSmsRequest;
 import ua.newerp.application.sms.SendSmsResultDto;
 import ua.newerp.application.sms.SmsDto;
@@ -51,6 +71,8 @@ import ua.newerp.application.sms.SmsSender;
 import ua.newerp.application.sms.SmsService;
 import ua.newerp.application.sms.TtnMismatchDto;
 import ua.newerp.domain.common.DomainException;
+import ua.newerp.domain.delivery.SeatPreset;
+import ua.newerp.domain.delivery.ShipmentSeat;
 import ua.newerp.web.auth.CurrentSession;
 
 /**
@@ -69,6 +91,9 @@ class OrderCardViewTest extends BrowserlessTest {
     final ShipmentService shipmentService = mock(ShipmentService.class);
     final CashboxService cashbox = mock(CashboxService.class);
     final BankPaymentService bank = mock(BankPaymentService.class);
+    final LiqPayService liqPay = mock(LiqPayService.class);
+    final NewOrderService composition = mock(NewOrderService.class);
+    final ReturnService returns = mock(ReturnService.class);
     final CurrentSession session = mock(CurrentSession.class);
     OrderCardView view;
 
@@ -80,7 +105,7 @@ class OrderCardViewTest extends BrowserlessTest {
         when(session.user()).thenReturn(Optional.of(new CurrentUser(7, "olena", "Олена Коваль", "Manager", false)));
         when(session.hasAnyRole(any(String[].class))).thenReturn(true);
         when(smsLog.listForOrder(1001)).thenReturn(List.of());
-        view = new OrderCardView(queries, orders, sms, smsLog, sender, shipments, shipmentService, cashbox, bank, session);
+        view = new OrderCardView(queries, orders, sms, smsLog, sender, shipments, shipmentService, cashbox, bank, liqPay, composition, returns, session);
         UI.getCurrent().add(view);
         view.open(1001);
     }
@@ -138,6 +163,74 @@ class OrderCardViewTest extends BrowserlessTest {
         assertThat(find(Anchor.class, view).all()).extracting(Anchor::getHref)
                 .contains("/orders/1001/shipment/print?kind=Document", "/orders/1001/shipment/print?kind=Markings");
         verify(shipmentService, never()).delete(anyInt());
+    }
+
+    @Test
+    void newWaybillIsFilledInFromTheOrder() {
+        var city = new CityDto("city-kyiv", "Київ");
+        var branch = new WarehouseDto("wh-5", "Відділення №5", "Branch", 30);
+        var box = new ShipmentSeat(new BigDecimal("0.5"), new BigDecimal("20"), new BigDecimal("30"), new BigDecimal("5"));
+        when(shipmentService.form(1001)).thenReturn(new ShipmentFormDto("Ірина", "Шевчук", "380671112233", "Київ", city, "Відділення 5",
+                branch, new BigDecimal("1500"), new BigDecimal("1500"), List.of(new SenderOption("main", "Майстерня", true)),
+                List.of(new DropoffPointOption("office", "Офіс", true)), List.of(new SeatPreset("Пакет", box)), true, true));
+        var created = new ShipmentDto(1, 1001, "NovaPoshta", "00000000000001", BigDecimal.ZERO, "", 0, 0, false, "Київ, відділення 5",
+                true, LocalDateTime.of(2026, 10, 2, 10, 0), null, null);
+        when(shipmentService.create(any(Integer.class), any(CreateShipmentRequest.class), any(Integer.class))).thenReturn(created);
+        test(view.createShipment).click();
+
+        var dialog = find(CreateShipmentDialog.class).single();
+        assertThat(dialog.lastName.getValue()).isEqualTo("Шевчук");
+        test(dialog.cashOnDelivery).setValue(BigDecimal.ZERO);
+        test(dialog.create).click();
+
+        verify(shipmentService).create(1001, new CreateShipmentRequest("Ірина", "Шевчук", "", "380671112233", "city-kyiv", "wh-5",
+                new BigDecimal("1500"), BigDecimal.ZERO, false, List.of(box), "main", "office"), 7);
+        assertThat(test(find(Notification.class).single()).getText()).isEqualTo("ТТН 00000000000001 створено.");
+    }
+
+    @Test
+    void changingTheSizeTakesItsPriceAndSavesTheNewComposition() {
+        var s = new ProductOptionValueDto(1, 11, "Розмір", "S", 3, BigDecimal.ZERO);
+        var xl = new ProductOptionValueDto(1, 14, "Розмір", "XL", 1, new BigDecimal("1400"));
+        when(composition.getComposition(1001)).thenReturn(new OrderCompositionDto(1001, 1, List.of(new OrderCompositionLine(50, 11,
+                "Сукня лляна", "SL-01", "S", 1, new BigDecimal("1300"), List.of(s, xl))), new BigDecimal("200"), BigDecimal.ZERO,
+                BigDecimal.ZERO, new BigDecimal("1500")));
+        when(composition.updateComposition(any(Integer.class), any(UpdateOrderCompositionRequest.class), any(Integer.class)))
+                .thenReturn(new UpdateOrderCompositionResult(new BigDecimal("1600"), List.of()));
+        test(view.editComposition).click();
+
+        var dialog = find(EditCompositionDialog.class).single();
+        test(dialog.lines.getFirst().option).selectItem("XL (є 1)");
+        assertThat(dialog.total()).isEqualByComparingTo("1600");
+        test(dialog.save).click();
+
+        verify(composition).updateComposition(1001, new UpdateOrderCompositionRequest(List.of(new NewOrderLineRequest(50, 14, 1,
+                new BigDecimal("1400"))), new BigDecimal("200"), BigDecimal.ZERO, BigDecimal.ZERO), 7);
+    }
+
+    @Test
+    void returnIsMadeForAProductOfTheOrder() {
+        when(returns.lookups()).thenReturn(new ReturnLookupsDto(List.of(new ReturnLookupItem(1, "Очікує")),
+                List.of(new ReturnLookupItem(3, "Не підійшов розмір")), List.of()));
+        when(returns.create(any(CreateReturnRequest.class))).thenReturn(77);
+        test(view.createReturn).click();
+
+        var dialog = find(CreateReturnDialog.class).single();
+        test(dialog.opened).click();
+        test(dialog.save).click();
+
+        verify(returns).create(new CreateReturnRequest(1001, 50, 1, 3, 1, 0, true, ""));
+        assertThat(test(find(Notification.class).single()).getText()).isEqualTo("Повернення №77 оформлено.");
+    }
+
+    @Test
+    void liqPayLinkIsForTheOrderTotal() {
+        when(liqPay.createLink(1001, new CreatePaymentLinkRequest(new BigDecimal("1500"))))
+                .thenReturn(new PaymentLinkDto("https://www.liqpay.ua/api/3/checkout?data=test", new BigDecimal("1500"), "UAH", true));
+        var panel = find(LiqPayPanel.class, view).single();
+        test(panel.createLink).click();
+
+        assertThat(find(Anchor.class, panel.link).single().getHref()).isEqualTo("https://www.liqpay.ua/api/3/checkout?data=test");
     }
 
     private static OrderDetails order() {
