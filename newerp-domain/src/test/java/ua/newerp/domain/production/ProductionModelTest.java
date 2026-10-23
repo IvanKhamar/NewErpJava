@@ -10,6 +10,8 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
+import ua.newerp.domain.common.DomainException;
+
 import ua.newerp.domain.production.ProductionModel.CategoryLinkInput;
 import ua.newerp.domain.production.ProductionModel.SewnBomRow;
 import ua.newerp.domain.production.ProductionModel.SizeInput;
@@ -118,6 +120,31 @@ class ProductionModelTest {
                 .hasMessage("Кількість має бути більшою за нуль.");
         assertThatThrownBy(() -> model.recordCut(99, n("1"), null, 3, "olena", NOW))
                 .hasMessage("Розмір 99 не належить моделі \"Сукня лляна\".");
+    }
+
+    @Test
+    void recountSetsTheCountedStockAndLogsTheDifference() {
+        ProductionModel model = dress();
+        model.recordCut(1, n("5"), null, 3, "olena", NOW);
+
+        ProductionLogEntry cut = model.recount(1, ProductionLogEntry.CUT, n("3"), "Інвентаризація", 3, "olena", NOW);
+        assertThat(cut.getDirection()).isEqualTo(ProductionLogEntry.OUT);
+        assertThat(cut.getQuantity()).isEqualByComparingTo("2");
+        assertThat(cut.getStockAfter()).isEqualByComparingTo("3");
+        ProductionLogEntry sewn = model.recount(2, ProductionLogEntry.SEWN, n("4"), "Інвентаризація", 3, "olena", NOW);
+        assertThat(sewn.getDirection()).isEqualTo(ProductionLogEntry.IN);
+        assertThat(model.getTotalSewn()).isEqualByComparingTo("4");
+        assertThat(model.recount(1, ProductionLogEntry.CUT, n("3.000"), "Інвентаризація", 3, "olena", NOW)).isNull();
+
+        assertThatThrownBy(() -> model.recount(1, ProductionLogEntry.SEWN, n("-1"), null, 3, "olena", NOW))
+                .hasMessage("Розмір S: кількість має бути від 0, не більше 3 знаків після коми.");
+        assertThatThrownBy(() -> model.recount(1, "boxed", n("1"), null, 3, "olena", NOW)).isInstanceOf(DomainException.class);
+
+        var stock = new ComponentStock(5, 1);
+        stock.add(n("4"));
+        assertThat(stock.recount(n("4.0"))).isFalse();
+        assertThat(stock.recount(n("1"))).isTrue();
+        assertThat(stock.getStock()).isEqualByComparingTo("1");
     }
 
     @Test

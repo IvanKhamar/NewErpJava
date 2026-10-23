@@ -244,6 +244,24 @@ public class ProductionModel {
         return change(size, ProductionLogEntry.SEWN, quantity.negate(), comment, userId, username, now);
     }
 
+    /**
+     * Stocktaking: the cut ({@link ProductionLogEntry#CUT}) or sewn ({@link ProductionLogEntry#SEWN}) stock of the size becomes
+     * what was counted, and the difference goes into the log. Returns null when the count matches.
+     */
+    public ProductionLogEntry recount(int sizeId, String stage, BigDecimal actual, String comment, int userId, String username,
+            LocalDateTime now) {
+        if (!ProductionLogEntry.CUT.equals(stage) && !ProductionLogEntry.SEWN.equals(stage)) {
+            throw new DomainException("Етап має бути " + ProductionLogEntry.CUT + " або " + ProductionLogEntry.SEWN + ".");
+        }
+        ProductionSize size = requireSize(sizeId);
+        if (actual == null || actual.signum() < 0 || actual.stripTrailingZeros().scale() > 3) {
+            throw new DomainException("Розмір " + size.getName() + ": кількість має бути від 0, не більше 3 знаків після коми.");
+        }
+        BigDecimal before = ProductionLogEntry.CUT.equals(stage) ? size.getCutStock() : size.getSewnStock();
+        BigDecimal delta = actual.subtract(before);
+        return delta.signum() == 0 ? null : change(size, stage, delta, comment, userId, username, now);
+    }
+
     /** Log comment the old site uses for sewn pieces taken by an order. */
     public static String orderComment(int orderId) {
         return "Замовлення #" + orderId;
