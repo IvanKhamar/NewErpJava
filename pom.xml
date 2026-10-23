@@ -18,11 +18,13 @@
     <packaging>pom</packaging>
     <name>NewErp</name>
 
-    <!-- Layers point inward only: domain <- application <- infrastructure <- api -->
+    <!-- Layers point inward only: domain <- application <- infrastructure <- api.
+         web (the Vaadin UI) sits next to api: it uses application only, and api runs it. -->
     <modules>
         <module>newerp-domain</module>
         <module>newerp-application</module>
         <module>newerp-infrastructure</module>
+        <module>newerp-web</module>
         <module>newerp-api</module>
     </modules>
 
@@ -32,10 +34,19 @@
         <springdoc.version>3.1.1</springdoc.version>
         <archunit.version>1.5.1</archunit.version>
         <poi.version>5.4.1</poi.version>
+        <vaadin.version>25.3.3</vaadin.version>
     </properties>
 
     <dependencyManagement>
         <dependencies>
+            <!-- A BOM pins the versions of all Vaadin artifacts at once -->
+            <dependency>
+                <groupId>com.vaadin</groupId>
+                <artifactId>vaadin-bom</artifactId>
+                <version>${vaadin.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
             <dependency>
                 <groupId>org.apache.poi</groupId>
                 <artifactId>poi-ooxml</artifactId>
@@ -54,6 +65,11 @@
             <dependency>
                 <groupId>ua.newerp</groupId>
                 <artifactId>newerp-infrastructure</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>ua.newerp</groupId>
+                <artifactId>newerp-web</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

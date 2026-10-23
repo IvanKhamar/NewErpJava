@@ -7,3 +7,4 @@ out/
 # Local settings with passwords, never committed
 application-local.yml
 logs/
+**/src/main/frontend/generated/
