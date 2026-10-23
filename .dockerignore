@@ -1,0 +1,7 @@
+# Never send local secrets or build output into the image
+application-local.yml
+**/target/
+.git/
+.idea/
+*.iml
+logs/

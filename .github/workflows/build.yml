@@ -17,3 +17,9 @@ jobs:
           cache: maven
       # Docker is available on GitHub runners, so the MySQL integration tests run here too.
       - run: ./mvnw -B verify
+      # The jar of every green build on main, to download from the run page (Artifacts)
+      - if: github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: newerp-jar
+          path: newerp-api/target/newerp.jar

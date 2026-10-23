@@ -6,3 +6,4 @@ out/
 .DS_Store
 # Local settings with passwords, never committed
 application-local.yml
+logs/

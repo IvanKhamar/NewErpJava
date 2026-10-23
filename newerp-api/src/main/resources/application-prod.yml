@@ -1,0 +1,20 @@
+# Production profile: SPRING_PROFILES_ACTIVE=prod (see docs/deploy.md). Adds to application.yml, wins where both set a value.
+server:
+  # Behind a reverse proxy (IIS, nginx, Caddy) that ends HTTPS: trust its X-Forwarded-* headers,
+  # so the app knows the request came over HTTPS and builds correct redirect URLs.
+  forward-headers-strategy: native
+  servlet:
+    session:
+      cookie:
+        secure: true # the login cookie travels only over HTTPS
+
+# No API docs in production: they list every endpoint and are only needed while developing.
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
+logging:
+  file:
+    name: logs/newerp.log # rotated by size; the console keeps logging too
