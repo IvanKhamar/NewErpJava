@@ -20,6 +20,7 @@ import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.value.ValueChangeMode;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
+import com.vaadin.flow.router.RouteParameters;
 import com.vaadin.flow.theme.lumo.LumoUtility;
 
 import jakarta.annotation.security.RolesAllowed;
@@ -100,6 +101,8 @@ public class OrderListView extends VerticalLayout {
         grid.setPageSize(PAGE_SIZE);
         grid.setEmptyStateText("Замовлень не знайдено.");
         grid.setSizeFull();
+        grid.addItemClickListener(e -> getUI().ifPresent(ui -> ui.navigate(OrderCardView.class,
+                new RouteParameters("id", String.valueOf(e.getItem().id())))));
         // The grid asks for rows by offset and count; the count query gives the scroll bar its right size.
         grid.setItems(query -> fetch(query.getOffset(), query.getLimit()).stream(),
                 query -> queries.list(filter(1, 1)).totalCount());
