@@ -25,7 +25,10 @@ import ua.newerp.web.delivery.DeliveryView;
 import ua.newerp.web.home.HomeView;
 import ua.newerp.web.orders.OrderListView;
 import ua.newerp.web.returns.ReturnListView;
+import ua.newerp.web.stock.PurchaseOrderListView;
+import ua.newerp.web.stock.ReorderView;
 import ua.newerp.web.stock.StockListView;
+import ua.newerp.web.stock.SuppliersView;
 
 /**
  * The frame around every page: top bar with the user, side menu (MainLayout.razor + NavMenu.razor).
@@ -70,6 +73,9 @@ public class MainLayout extends AppLayout implements BeforeEnterObserver {
         nav.addItem(new SideNavItem("Головна", HomeView.class, VaadinIcon.HOME.create()));
         if (session.hasAnyRole(Access.STOCK)) {
             nav.addItem(new SideNavItem("Розхідники", StockListView.class, VaadinIcon.STORAGE.create()));
+            nav.addItem(new SideNavItem("Що дозамовити", ReorderView.class, VaadinIcon.LIST.create()));
+            nav.addItem(new SideNavItem("Закупівлі", PurchaseOrderListView.class, VaadinIcon.PACKAGE.create()));
+            nav.addItem(new SideNavItem("Постачальники", SuppliersView.class, VaadinIcon.FACTORY.create()));
         }
         if (session.hasAnyRole(Access.ORDERS)) {
             nav.addItem(new SideNavItem("Замовлення", OrderListView.class, VaadinIcon.CART.create()));
