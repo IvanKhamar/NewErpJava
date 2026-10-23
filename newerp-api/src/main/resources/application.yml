@@ -61,6 +61,12 @@ checkbox:
   fake-receipts: false
   auto-close-interval-minutes: 15
 
+# PrivatBank statement and LiqPay: accounts and keys only in application-local.yml or environment variables.
+privat-bank:
+  base-url: https://acp.privatbank.ua
+liq-pay:
+  base-url: https://www.liqpay.ua
+
 # API docs: /swagger-ui.html
 springdoc:
   swagger-ui:
