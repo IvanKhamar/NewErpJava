@@ -45,10 +45,13 @@ class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/auth/login").permitAll()
                         .requestMatchers("/health", "/error", "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**", "/app/**")
                         .permitAll()
+                        // The partner's site fetches its feed without a login, as on the old site.
+                        .requestMatchers(HttpMethod.GET, "/feeds/*.xml").permitAll()
                         .requestMatchers(HttpMethod.POST, "/cashbox/cashiers").hasRole(Roles.ADMIN)
                         .requestMatchers(HttpMethod.PUT, "/cashbox/cashiers/*").hasRole(Roles.ADMIN)
                         .requestMatchers("/cashbox/warehouses/**", "/cashbox/requisites/**").hasRole(Roles.ADMIN)
-                        .requestMatchers("/orders/**", "/delivery/**", "/cashbox/**", "/payments/**", "/preorders/**").hasAnyRole(Roles.ADMIN, Roles.MANAGER)
+                        .requestMatchers("/orders/**", "/delivery/**", "/cashbox/**", "/payments/**", "/preorders/**",
+                                "/partners/**").hasAnyRole(Roles.ADMIN, Roles.MANAGER)
                         .requestMatchers("/stock/**", "/production/**").hasAnyRole(Roles.ADMIN, Roles.STOREKEEPER)
                         .requestMatchers("/staff/bonuses", "/users/**").hasRole(Roles.ADMIN)
                         // Everything else needs a login, so a new endpoint cannot stay open by accident.
