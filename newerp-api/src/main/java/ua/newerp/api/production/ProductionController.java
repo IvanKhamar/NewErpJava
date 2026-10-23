@@ -31,6 +31,8 @@ import ua.newerp.application.production.ProductionOperationRequest;
 import ua.newerp.application.production.ProductionOperationResult;
 import ua.newerp.application.production.ProductionRepository;
 import ua.newerp.application.production.ProductionService;
+import ua.newerp.application.production.ProductionStocktakingRequest;
+import ua.newerp.application.production.ProductionStocktakingResult;
 import ua.newerp.application.production.SewingPlanDto;
 import ua.newerp.application.production.SewingPlanService;
 import ua.newerp.application.production.StorefrontSyncResult;
@@ -124,6 +126,14 @@ class ProductionController {
     @Operation(summary = "Передати пошиті залишки всіх активних моделей на вітрину магазину (кількість розмірів і товарів у OpenCart)")
     StorefrontSyncResult syncStorefront() {
         return service.pushStorefront();
+    }
+
+    @PostMapping("/models/{id:\\d+}/stocktaking")
+    @Operation(summary = "Інвентаризація моделі: розкроєне й пошите кожного розміру та залишки деталей стають порахованими; "
+            + "різниця розмірів іде в журнал з коментарем «Інвентаризація», пошите — на вітрину; з помилкою нічого не записується")
+    ProductionStocktakingResult stocktaking(@PathVariable int id, @RequestBody ProductionStocktakingRequest request,
+            @AuthenticationPrincipal AuthenticatedUser user) {
+        return service.recount(id, request, user.user().userId(), user.user().username());
     }
 
     @PostMapping("/models/{id:\\d+}/cut")

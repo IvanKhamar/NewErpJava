@@ -21,6 +21,7 @@ import com.vaadin.browserless.ViewPackages;
 import com.vaadin.flow.component.UI;
 
 import ua.newerp.application.auth.CurrentUser;
+import ua.newerp.application.production.ComponentCountRequest;
 import ua.newerp.application.production.ComponentDto;
 import ua.newerp.application.production.ProductionLogFilter;
 import ua.newerp.application.production.ProductionModelDto;
@@ -38,6 +39,9 @@ import ua.newerp.application.production.CuttingPlanItemDto;
 import ua.newerp.application.production.CuttingPlanModelDto;
 import ua.newerp.application.production.CuttingPlanService;
 import ua.newerp.application.production.CuttingPlanSizeDto;
+import ua.newerp.application.production.ProductionStocktakingRequest;
+import ua.newerp.application.production.ProductionStocktakingResult;
+import ua.newerp.application.production.SizeCountRequest;
 import ua.newerp.application.production.SizeQuantity;
 import ua.newerp.application.production.SetProductionLinksRequest;
 import ua.newerp.application.production.SetSewnBomRequest;
@@ -122,6 +126,29 @@ class ProductionViewsTest extends BrowserlessTest {
         test(view.operations.submit).click();
 
         verify(service, never()).record(any(Integer.class), any(), any(), any(Integer.class), any());
+    }
+
+    @Test
+    void stocktakingSendsOnlyTheCountsThatDifferFromTheBooks() {
+        when(service.recount(any(Integer.class), any(ProductionStocktakingRequest.class), any(Integer.class), any(String.class)))
+                .thenReturn(new ProductionStocktakingResult(List.of(), List.of(), 1));
+        var view = new ModelCardView(repository, service, stock, session);
+        UI.getCurrent().add(view);
+        view.open(4);
+        roundTrip();
+        test(view.stocktaking).click();
+        roundTrip();
+        var dialog = find(ModelStocktakingDialog.class).single();
+
+        test(dialog.save).click();
+        verify(service, never()).recount(any(Integer.class), any(ProductionStocktakingRequest.class), any(Integer.class), any(String.class));
+
+        test(dialog.sewn.get(41)).setValue(new BigDecimal("9"));
+        test(dialog.components.get(List.of(7, 42))).setValue(BigDecimal.ONE);
+        test(dialog.save).click();
+
+        verify(service).recount(4, new ProductionStocktakingRequest(List.of(new SizeCountRequest(41, null, new BigDecimal("9"))),
+                List.of(new ComponentCountRequest(7, 42, BigDecimal.ONE)), ""), 3, "taras");
     }
 
     @Test

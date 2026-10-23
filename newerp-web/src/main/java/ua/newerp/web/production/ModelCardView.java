@@ -43,6 +43,7 @@ public class ModelCardView extends VerticalLayout implements BeforeEnterObserver
 
     final Button edit = new Button("Змінити", VaadinIcon.EDIT.create());
     final Button deactivate = new Button("Прибрати модель");
+    final Button stocktaking = new Button("Інвентаризація", VaadinIcon.CLIPBOARD_CHECK.create());
     TabSheet tabs = new TabSheet();
     OperationPanel operations;
 
@@ -62,6 +63,7 @@ public class ModelCardView extends VerticalLayout implements BeforeEnterObserver
             Messages.success("Зміни збережено.");
             open(id);
         }).open());
+        stocktaking.addClickListener(e -> new ModelStocktakingDialog(service, model, session.user().orElseThrow(), done -> open(id)).open());
         deactivate.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_ERROR);
         deactivate.addClickListener(e -> Confirm.ask("Прибрати модель?",
                 "Модель зникне зі списків (як і на старому сайті, дані не видаляються).", "Прибрати", "Ні", this::deactivate));
@@ -90,7 +92,7 @@ public class ModelCardView extends VerticalLayout implements BeforeEnterObserver
         var type = new Span(ProductionUi.typeLabel(model.type()));
         type.addClassName("status-badge");
         type.addClassName(LumoUtility.Margin.End.AUTO);
-        var header = new HorizontalLayout(title, type, edit, deactivate);
+        var header = new HorizontalLayout(title, type, stocktaking, edit, deactivate);
         header.setWidthFull();
         header.setDefaultVerticalComponentAlignment(FlexComponent.Alignment.CENTER);
 

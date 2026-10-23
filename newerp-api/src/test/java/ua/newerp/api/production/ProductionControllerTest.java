@@ -126,6 +126,34 @@ class ProductionControllerTest extends IntegrationTest {
     }
 
     @Test
+    void stocktakingSetsCountedStockOfSizesAndComponents() {
+        assertThat(post("/production/models/1/stocktaking", """
+                {"sizes":[{"sizeId":1,"cut":2,"sewn":5},{"sizeId":2,"cut":1}],
+                 "components":[{"componentId":1,"sizeId":1,"actual":0},{"componentId":2,"sizeId":2,"actual":3}],
+                 "comment":"жовтень"}
+                """)).hasStatusOk().bodyJson().isStrictlyEqualTo("""
+                {"cut":[{"sizeId":2,"sizeName":"M","before":0.000,"after":1.000}],
+                 "sewn":[{"sizeId":1,"sizeName":"S","before":3.000,"after":5.000}],
+                 "components":2}
+                """);
+        assertThat(mvc.get().uri("/production/models/1").session(keeper)).bodyJson().isLenientlyEqualTo("""
+                {"sizes":[{"cutStock":2.000,"sewnStock":5.000},{"cutStock":1.000,"sewnStock":1.000}],
+                 "components":[{"id":1,"stock":{"1":0.000}},{"id":2,"stock":{"1":1.000,"2":3.000}}]}
+                """);
+        assertThat(mvc.get().uri("/production/log?productionId=1").session(keeper)).bodyJson()
+                .extractingPath("$[0].comment").isEqualTo("Інвентаризація: жовтень");
+
+        // A wrong row and nothing is written: the sewn stock of S stays 5
+        assertThat(post("/production/models/1/stocktaking", "{\"sizes\":[{\"sizeId\":1,\"sewn\":0},{\"sizeId\":3,\"sewn\":1}]}"))
+                .hasStatus(400).bodyJson().extractingPath("$.detail").isEqualTo("Розмір 3 не належить моделі \"Сукня Лілія\".");
+        assertThat(post("/production/models/1/stocktaking", "{\"components\":[{\"componentId\":1,\"sizeId\":1,\"actual\":-1}]}"))
+                .hasStatus(400);
+        assertThat(mvc.get().uri("/production/models/1").session(keeper)).bodyJson()
+                .extractingPath("$.sizes[0].sewnStock").isEqualTo(5.0);
+        assertThat(post("/production/models/1/stocktaking", "{}")).hasStatus(400);
+    }
+
+    @Test
     void sendToSewingAndShipCannotGoBelowZero() {
         assertThat(post("/production/models/1/to-sewing", "{\"quantities\":[{\"sizeId\":1,\"quantity\":3}]}"))
                 .hasStatus(400).bodyJson().extractingPath("$.detail").isEqualTo("Розмір S: розкроєно лише 2, а вказано 3.");

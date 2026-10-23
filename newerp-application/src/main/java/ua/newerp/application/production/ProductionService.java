@@ -100,6 +100,80 @@ public class ProductionService {
         return new ProductionOperationResult(changes, consumption == null ? List.of() : consumption.warnings);
     }
 
+    /**
+     * Stocktaking of a model: the cut and sewn stock of each counted size and each counted component stock become what was
+     * counted. Size differences go into the production log with the comment "Інвентаризація". One transaction: a wrong
+     * count writes nothing.
+     */
+    public ProductionStocktakingResult recount(int productionId, ProductionStocktakingRequest request, int userId, String username) {
+        ProductionModel model = requireModel(productionId);
+        if (request.sizes().isEmpty() && request.components().isEmpty()) {
+            throw new DomainException("Немає жодної порахованої кількості.");
+        }
+        var seenSizes = new HashSet<Integer>();
+        request.sizes().stream().filter(r -> !seenSizes.add(r.sizeId())).findFirst().ifPresent(dup -> {
+            throw new DomainException("Розмір " + dup.sizeId() + " указано двічі.");
+        });
+        var seenComponents = new HashSet<List<Integer>>();
+        request.components().stream().filter(r -> !seenComponents.add(List.of(r.componentId(), r.sizeId()))).findFirst()
+                .ifPresent(dup -> {
+                    throw new DomainException("Деталь " + dup.componentId() + " розміру " + dup.sizeId() + " указано двічі.");
+                });
+        String comment = request.comment() == null || request.comment().isBlank()
+                ? "Інвентаризація"
+                : "Інвентаризація: " + request.comment().strip();
+        comment = comment.length() > 255 ? comment.substring(0, 255) : comment;
+
+        LocalDateTime now = LocalDateTime.now(clock);
+        var cut = new ArrayList<SizeChangeDto>();
+        var sewn = new ArrayList<SizeChangeDto>();
+        for (SizeCountRequest row : request.sizes()) {
+            recountStage(model, row.sizeId(), ProductionLogEntry.CUT, row.cut(), comment, userId, username, now, cut);
+            recountStage(model, row.sizeId(), ProductionLogEntry.SEWN, row.sewn(), comment, userId, username, now, sewn);
+        }
+
+        int components = 0;
+        if (!request.components().isEmpty()) {
+            List<Integer> own = repository.componentIds(productionId);
+            Map<List<Integer>, ComponentStock> stocks = new HashMap<>();
+            repository.findComponentStocks(own).forEach(s -> stocks.put(List.of(s.getComponentId(), s.getSizeId()), s));
+            for (ComponentCountRequest row : request.components()) {
+                if (!own.contains(row.componentId())) {
+                    throw new DomainException("Деталь " + row.componentId() + " не належить моделі \"" + model.getName() + "\".");
+                }
+                model.requireSize(row.sizeId());
+                ComponentStock stock = stocks.get(List.of(row.componentId(), row.sizeId()));
+                if (stock == null) {
+                    stock = new ComponentStock(row.componentId(), row.sizeId());
+                    if (!stock.recount(row.actual())) {
+                        continue;
+                    }
+                    repository.add(stock);
+                    components++;
+                } else if (stock.recount(row.actual())) {
+                    components++;
+                }
+            }
+        }
+
+        if (!sewn.isEmpty()) {
+            storefront.push(List.of(productionId));
+        }
+        return new ProductionStocktakingResult(cut, sewn, components);
+    }
+
+    private void recountStage(ProductionModel model, int sizeId, String stage, BigDecimal actual, String comment, int userId,
+            String username, LocalDateTime now, List<SizeChangeDto> changes) {
+        if (actual == null) {
+            return;
+        }
+        ProductionLogEntry entry = model.recount(sizeId, stage, actual, comment, userId, username, now);
+        if (entry != null) {
+            repository.add(entry);
+            changes.add(new SizeChangeDto(sizeId, entry.getSizeName(), entry.getStockBefore(), entry.getStockAfter()));
+        }
+    }
+
     /** Passes the sewn stock of all active models to the storefront (for example, after changes on the old site). */
     public StorefrontSyncResult pushStorefront() {
         return storefront.push(null);
