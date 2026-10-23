@@ -7,6 +7,8 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.datepicker.DatePicker;
 import com.vaadin.flow.component.grid.ColumnTextAlign;
@@ -14,7 +16,9 @@ import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.grid.GridVariant;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.icon.VaadinIcon;
+import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.FlexLayout;
+import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.value.ValueChangeMode;
@@ -114,7 +118,13 @@ public class OrderListView extends VerticalLayout {
         from.addValueChangeListener(e -> reload());
         to.addValueChangeListener(e -> reload());
 
-        add(new H2("Замовлення"), filters, grid);
+        var create = new Button("Нове замовлення", VaadinIcon.PLUS.create(), e -> getUI().ifPresent(ui -> ui.navigate(NewOrderView.class)));
+        create.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        var header = new HorizontalLayout(new H2("Замовлення"), create);
+        header.setWidthFull();
+        header.setJustifyContentMode(FlexComponent.JustifyContentMode.BETWEEN);
+        header.setDefaultVerticalComponentAlignment(FlexComponent.Alignment.CENTER);
+        add(header, filters, grid);
         setFlexGrow(1, grid);
     }
 

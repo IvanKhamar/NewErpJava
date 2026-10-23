@@ -200,7 +200,7 @@ class OrderCardViewTest extends BrowserlessTest {
         test(view.editComposition).click();
 
         var dialog = find(EditCompositionDialog.class).single();
-        test(dialog.lines.getFirst().option).selectItem("XL (є 1)");
+        test(dialog.lines.lines.getFirst().option).selectItem("XL (є 1)");
         assertThat(dialog.total()).isEqualByComparingTo("1600");
         test(dialog.save).click();
 
