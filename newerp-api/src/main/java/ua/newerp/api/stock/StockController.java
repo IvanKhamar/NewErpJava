@@ -26,6 +26,8 @@ import ua.newerp.application.common.CreatedId;
 import ua.newerp.application.stock.ReorderReportDto;
 import ua.newerp.application.stock.ReorderService;
 import ua.newerp.application.stock.SaveStockItemRequest;
+import ua.newerp.application.stock.StockAlertService;
+import ua.newerp.application.stock.StockAlertsDto;
 import ua.newerp.application.stock.StockItemDto;
 import ua.newerp.application.stock.StockItemFilter;
 import ua.newerp.application.stock.StockMovementDto;
@@ -42,11 +44,13 @@ class StockController {
     private final StockRepository repository;
     private final StockService service;
     private final ReorderService reorder;
+    private final StockAlertService alerts;
 
-    StockController(StockRepository repository, StockService service, ReorderService reorder) {
+    StockController(StockRepository repository, StockService service, ReorderService reorder, StockAlertService alerts) {
         this.repository = repository;
         this.service = service;
         this.reorder = reorder;
+        this.alerts = alerts;
     }
 
     @GetMapping("/categories")
@@ -73,6 +77,12 @@ class StockController {
     @Operation(summary = "Позиції складу; belowMinimumOnly=true показує те, що треба дозамовити")
     List<StockItemDto> items(StockItemFilter filter) {
         return repository.listItems(filter);
+    }
+
+    @GetMapping("/alerts")
+    @Operation(summary = "Що потребує уваги: розхідники нижче мінімуму (з тим, що вже замовлено) і моделі, пошитих яких менше за мінімум")
+    StockAlertsDto alerts() {
+        return alerts.get();
     }
 
     @GetMapping("/reorder")
