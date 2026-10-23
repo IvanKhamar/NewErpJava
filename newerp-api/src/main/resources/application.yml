@@ -67,6 +67,17 @@ checkbox:
 pre-orders:
   settle-interval-minutes: 60
 
+# The order of products by sales (the old "Порядок товарів" module); values as in the old site's code
+product-sort:
+  counted-status-ids: [17, 18, 21, 22, 23, 24, 25]
+  excluded-user-ids: [13]
+  excluded-order-markers: ["B2B"]
+  excluded-comment-markers: ["б2б", "магаз", "партнер"]
+  color-filter-ids: [156, 157, 158, 159]
+  tag-filter-group-id: 7
+  new-label-name: Новинка
+  default-days: 90
+
 # The header of the partners' XML feeds; a photo in a feed is {store-url}image/{path}
 partner-feed:
   shop-name: Vidro
