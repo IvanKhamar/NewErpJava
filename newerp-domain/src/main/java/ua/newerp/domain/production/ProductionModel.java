@@ -5,14 +5,18 @@ import static ua.newerp.domain.common.Decimals.isNegative;
 import static ua.newerp.domain.common.Decimals.text;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
@@ -164,6 +168,22 @@ public class ProductionModel {
         for (SizeOption mapping : mappings) {
             requireSize(mapping.sizeId()).setOptionValueId(mapping.optionValueId());
         }
+    }
+
+    /**
+     * How many pieces to show on the storefront for each linked value of the "Size" option: the size's sewn stock,
+     * rounded down to whole pieces (OpenCart quantities are whole). If two sizes are linked to the same value,
+     * the first one wins, as in the old module.
+     */
+    public Map<Integer, Integer> storefrontQuantities() {
+        var result = new LinkedHashMap<Integer, Integer>();
+        sizes.stream()
+                .filter(s -> s.getOptionValueId() != null)
+                .sorted(Comparator.comparingInt(ProductionSize::getSortOrder).thenComparing(ProductionSize::getId,
+                        Comparator.nullsLast(Comparator.naturalOrder())))
+                .forEach(s -> result.putIfAbsent(s.getOptionValueId(),
+                        s.getSewnStock().max(BigDecimal.ZERO).setScale(0, RoundingMode.FLOOR).intValueExact()));
+        return result;
     }
 
     /** Replaces the sewing BOM. Each row is either a cut component of this model or a consumable, not both. */

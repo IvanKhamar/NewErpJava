@@ -36,6 +36,23 @@ class ProductionModelTest {
     }
 
     @Test
+    void storefrontQuantitiesAreTheWholeSewnStockOfLinkedSizes() {
+        ProductionModel model = withId(new ProductionModel("Сукня", ProductionModel.CLOTHING, 0, 0), 7);
+        model.setSizes(List.of(size("S"), size("M"), size("L"), size("XL")));
+        for (int i = 0; i < 4; i++) {
+            withId(model.getSizes().get(i), i + 1);
+        }
+        model.recordSewn(1, n("4.7"), null, 1, "a", NOW);
+        model.recordSewn(2, n("2"), null, 1, "a", NOW);
+        model.recordSewn(3, n("9"), null, 1, "a", NOW);
+        // L is linked to the same value as M; XL is not linked
+        model.setSizeOptions(List.of(new ProductionModel.SizeOption(1, 46), new ProductionModel.SizeOption(2, 47),
+                new ProductionModel.SizeOption(3, 47)));
+
+        assertThat(model.storefrontQuantities()).containsExactlyInAnyOrderEntriesOf(java.util.Map.of(46, 4, 47, 2));
+    }
+
+    @Test
     void validatesTypeAndMinTotal() {
         assertThatThrownBy(() -> new ProductionModel("X", "shoes", 0, 0))
                 .hasMessage("Тип моделі має бути clothing або ready_made.");

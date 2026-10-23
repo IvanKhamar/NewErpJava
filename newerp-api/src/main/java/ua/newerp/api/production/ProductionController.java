@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -28,6 +29,9 @@ import ua.newerp.application.production.ProductionOperationRequest;
 import ua.newerp.application.production.ProductionOperationResult;
 import ua.newerp.application.production.ProductionRepository;
 import ua.newerp.application.production.ProductionService;
+import ua.newerp.application.production.SewingPlanDto;
+import ua.newerp.application.production.SewingPlanService;
+import ua.newerp.application.production.StorefrontSyncResult;
 import ua.newerp.application.production.SaveComponentRequest;
 import ua.newerp.application.production.SaveProductionModelRequest;
 import ua.newerp.application.production.SetComponentBomRequest;
@@ -42,10 +46,12 @@ class ProductionController {
 
     private final ProductionRepository repository;
     private final ProductionService service;
+    private final SewingPlanService plan;
 
-    ProductionController(ProductionRepository repository, ProductionService service) {
+    ProductionController(ProductionRepository repository, ProductionService service, SewingPlanService plan) {
         this.repository = repository;
         this.service = service;
+        this.plan = plan;
     }
 
     @GetMapping("/models")
@@ -94,6 +100,19 @@ class ProductionController {
     }
 
     // Four stock operations. Each takes quantities for several sizes at once.
+
+    @GetMapping("/plan")
+    @Operation(summary = "План пошиву: скільки кожного розміру пошити й розкроїти для активних замовлень (production.plan-status-ids); "
+            + "onlyToSew=false — також розміри, яких вистачає")
+    SewingPlanDto plan(@RequestParam(required = false) Boolean onlyToSew) {
+        return plan.get(onlyToSew == null || onlyToSew);
+    }
+
+    @PostMapping("/storefront/sync")
+    @Operation(summary = "Передати пошиті залишки всіх активних моделей на вітрину магазину (кількість розмірів і товарів у OpenCart)")
+    StorefrontSyncResult syncStorefront() {
+        return service.pushStorefront();
+    }
 
     @PostMapping("/models/{id:\\d+}/cut")
     @Operation(summary = "+Покроєно: крій зростає, розхідники списуються за специфікацією крою (бракує — списується те, що є, у warnings)")

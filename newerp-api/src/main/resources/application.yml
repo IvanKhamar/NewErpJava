@@ -52,6 +52,8 @@ stock:
   reorder-target-factor: 2
 production:
   order-subtract-status-ids: [18, 20, 21, 22, 23, 25]
+  # Active orders for the sewing plan (GET /production/plan)
+  plan-status-ids: [1, 17, 18, 23, 24, 25]
 # No API keys here: without a key the stub client is used and nothing reaches Nova Poshta.
 # Keys and senders go to application-local.yml (see application-local.example.yml).
 nova-poshta:
@@ -60,6 +62,10 @@ nova-poshta:
 checkbox:
   fake-receipts: false
   auto-close-interval-minutes: 15
+
+# How often what was sold ahead is taken off the pre-order quotas (minutes); 0: only by POST /preorders/settle.
+pre-orders:
+  settle-interval-minutes: 60
 
 # PrivatBank statement and LiqPay: accounts and keys only in application-local.yml or environment variables.
 privat-bank:

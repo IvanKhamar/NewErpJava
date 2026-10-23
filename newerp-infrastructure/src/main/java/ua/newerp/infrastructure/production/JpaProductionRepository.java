@@ -1,10 +1,12 @@
 package ua.newerp.infrastructure.production;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -28,7 +30,9 @@ import ua.newerp.application.production.ProductionLogFilter;
 import ua.newerp.application.production.ProductionModelDto;
 import ua.newerp.application.production.ProductionModelFilter;
 import ua.newerp.application.production.ProductionModelSummaryDto;
+import ua.newerp.application.production.PlanOrder;
 import ua.newerp.application.production.ProductionRepository;
+import ua.newerp.application.production.SewingPlanSource;
 import ua.newerp.application.production.ProductionSizeDto;
 import ua.newerp.application.production.SewnBomLineDto;
 import ua.newerp.domain.production.ComponentBomLine;
@@ -46,7 +50,7 @@ import ua.newerp.infrastructure.ErpProperties;
 /** Tables of the old StockTrack module dd_stock_production* (structure reconstructed, see db/reconstructed.sql). */
 @Repository
 @Transactional(readOnly = true)
-class JpaProductionRepository implements ProductionRepository {
+class JpaProductionRepository implements ProductionRepository, SewingPlanSource {
 
     private record ItemName(String name, String unit) {
     }
@@ -66,15 +70,23 @@ class JpaProductionRepository implements ProductionRepository {
 
     @Override
     public List<OrderSizeLine> getOrderSizeLines(int orderId) {
-        record Product(int orderProductId, int productId, String name, int quantity) {
+        return sizeLines(List.of(orderId)).getOrDefault(orderId, List.of());
+    }
+
+    /** Lines of several orders with the production model and options, by order id (the sewing plan needs many orders). */
+    private Map<Integer, List<OrderSizeLine>> sizeLines(Collection<Integer> orderIds) {
+        record Product(int orderId, int orderProductId, int productId, String name, int quantity) {
         }
-        List<Product> products = jdbc.sql("SELECT order_product_id, product_id, name, quantity FROM dd_order_product WHERE order_id = :id")
-                .param("id", orderId)
-                .query((rs, n) -> new Product(rs.getInt("order_product_id"), rs.getInt("product_id"), rs.getString("name"),
-                        rs.getInt("quantity")))
+        List<Product> products = jdbc.sql("""
+                SELECT order_id, order_product_id, product_id, name, quantity FROM dd_order_product
+                WHERE order_id IN (:ids) ORDER BY order_id, order_product_id
+                """)
+                .param("ids", orderIds)
+                .query((rs, n) -> new Product(rs.getInt("order_id"), rs.getInt("order_product_id"), rs.getInt("product_id"),
+                        rs.getString("name"), rs.getInt("quantity")))
                 .list();
         if (products.isEmpty()) {
-            return List.of();
+            return Map.of();
         }
         List<Integer> productIds = products.stream().map(Product::productId).distinct().toList();
 
@@ -84,9 +96,9 @@ class JpaProductionRepository implements ProductionRepository {
                 SELECT o.order_product_id, v.option_value_id
                 FROM dd_order_option o
                 JOIN dd_product_option_value v ON v.product_option_value_id = o.product_option_value_id
-                WHERE o.order_id = :id
+                WHERE o.order_id IN (:ids)
                 """)
-                .param("id", orderId)
+                .param("ids", orderIds)
                 .query(rs -> {
                     options.computeIfAbsent(rs.getInt("order_product_id"), k -> new ArrayList<>()).add(rs.getInt("option_value_id"));
                 });
@@ -132,10 +144,86 @@ class JpaProductionRepository implements ProductionRepository {
                         .findFirst()
                         .orElse(null);
 
-        return products.stream()
-                .map(p -> new OrderSizeLine(p.productId(), p.name(), p.quantity(), productionFor.apply(p.productId()),
-                        options.getOrDefault(p.orderProductId(), List.of())))
+        Map<Integer, List<OrderSizeLine>> result = new LinkedHashMap<>();
+        products.forEach(p -> result.computeIfAbsent(p.orderId(), k -> new ArrayList<>()).add(new OrderSizeLine(p.productId(), p.name(),
+                p.quantity(), productionFor.apply(p.productId()), options.getOrDefault(p.orderProductId(), List.of()))));
+        return result;
+    }
+
+    @Override
+    public List<PlanOrder> getPlanOrders(Collection<Integer> statusIds) {
+        if (statusIds.isEmpty()) {
+            return List.of();
+        }
+        record Order(int id, LocalDateTime dateAdded) {
+        }
+        List<Order> orders = jdbc.sql("SELECT order_id, date_added FROM dd_order WHERE order_status_id IN (:statuses) ORDER BY order_id")
+                .param("statuses", statusIds)
+                .query((rs, n) -> new Order(rs.getInt("order_id"), rs.getTimestamp("date_added").toLocalDateTime()))
+                .list();
+        if (orders.isEmpty()) {
+            return List.of();
+        }
+        List<Integer> ids = orders.stream().map(Order::id).toList();
+        Map<Integer, List<OrderSizeLine>> lines = sizeLines(ids);
+        Map<Integer, Map<Integer, BigDecimal>> held = sewnHeld(ids);
+        return orders.stream()
+                .map(o -> new PlanOrder(o.id(), o.dateAdded(), lines.getOrDefault(o.id(), List.of()), held.getOrDefault(o.id(), Map.of())))
                 .toList();
+    }
+
+    /** The same as getSewnHeldByOrder, but for many orders in one query. */
+    private Map<Integer, Map<Integer, BigDecimal>> sewnHeld(List<Integer> orderIds) {
+        record Key(int orderId, boolean taken) {
+        }
+        Map<String, Key> byComment = new HashMap<>();
+        orderIds.forEach(id -> {
+            byComment.put(ProductionModel.orderComment(id), new Key(id, true));
+            byComment.put(ProductionModel.cancelComment(id), new Key(id, false));
+        });
+        Map<Integer, Map<Integer, BigDecimal>> held = new HashMap<>();
+        jdbc.sql("SELECT size_id, direction, comment, quantity FROM dd_stock_production_log WHERE stage = 'sewn' AND comment IN (:comments)")
+                .param("comments", byComment.keySet())
+                .query(rs -> {
+                    Key key = byComment.get(rs.getString("comment"));
+                    String direction = rs.getString("direction");
+                    if (key == null || !direction.equals(key.taken() ? "out" : "in")) {
+                        return;
+                    }
+                    BigDecimal quantity = rs.getBigDecimal("quantity");
+                    held.computeIfAbsent(key.orderId(), k -> new HashMap<>())
+                            .merge(rs.getInt("size_id"), key.taken() ? quantity : quantity.negate(), BigDecimal::add);
+                });
+        return held;
+    }
+
+    @Override
+    public Map<Integer, Integer> getProductionDays(Collection<Integer> productIds) {
+        if (productIds.isEmpty()) {
+            return Map.of();
+        }
+        Map<Integer, Integer> days = new HashMap<>();
+        jdbc.sql("""
+                SELECT pc.product_id, c.production_period FROM dd_product_to_category pc
+                JOIN dd_category c ON c.category_id = pc.category_id
+                WHERE pc.product_id IN (:ids)
+                ORDER BY pc.category_id
+                """)
+                .param("ids", productIds)
+                .query(rs -> {
+                    days.putIfAbsent(rs.getInt("product_id"), rs.getInt("production_period"));
+                });
+        return days;
+    }
+
+    @Override
+    public List<ProductionModel> getPlanModels(Collection<Integer> productionIds) {
+        if (productionIds.isEmpty()) {
+            return List.of();
+        }
+        return em.createQuery("SELECT m FROM ProductionModel m WHERE m.id IN :ids", ProductionModel.class)
+                .setParameter("ids", productionIds)
+                .getResultList();
     }
 
     @Override
