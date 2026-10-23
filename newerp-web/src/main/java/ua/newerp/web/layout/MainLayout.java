@@ -20,6 +20,7 @@ import ua.newerp.application.auth.CurrentUser;
 import ua.newerp.web.Access;
 import ua.newerp.web.auth.ChangePasswordView;
 import ua.newerp.web.auth.CurrentSession;
+import ua.newerp.web.delivery.DeliveryView;
 import ua.newerp.web.home.HomeView;
 import ua.newerp.web.orders.OrderListView;
 
@@ -66,6 +67,7 @@ public class MainLayout extends AppLayout implements BeforeEnterObserver {
         nav.addItem(new SideNavItem("Головна", HomeView.class, VaadinIcon.HOME.create()));
         if (session.hasAnyRole(Access.ORDERS)) {
             nav.addItem(new SideNavItem("Замовлення", OrderListView.class, VaadinIcon.CART.create()));
+            nav.addItem(new SideNavItem("Доставка", DeliveryView.class, VaadinIcon.TRUCK.create()));
         }
         return nav;
     }
