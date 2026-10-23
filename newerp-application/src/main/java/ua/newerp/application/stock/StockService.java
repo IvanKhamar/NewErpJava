@@ -14,6 +14,7 @@ import ua.newerp.domain.common.DomainException;
 import ua.newerp.domain.stock.StockCategory;
 import ua.newerp.domain.stock.StockItem;
 import ua.newerp.domain.stock.StockMovement;
+import ua.newerp.domain.stock.StockPlacement;
 import ua.newerp.domain.stock.StockSupplier;
 
 /** Use cases of the consumables stock. Each public method is one transaction. */
@@ -22,10 +23,12 @@ import ua.newerp.domain.stock.StockSupplier;
 public class StockService {
 
     private final StockRepository repository;
+    private final StockLocationRepository locations;
     private final Clock clock;
 
-    public StockService(StockRepository repository, Clock clock) {
+    public StockService(StockRepository repository, StockLocationRepository locations, Clock clock) {
         this.repository = repository;
+        this.locations = locations;
         this.clock = clock;
     }
 
@@ -89,6 +92,10 @@ public class StockService {
             throw new DomainException("«" + item.getName() + "» є у відкритих закупівлях: "
                     + orders.stream().map(id -> "#" + id).collect(Collectors.joining(", ")) + ".");
         }
+        if (new StockPlacement(item, locations.findBalances(itemId)).isAtWarehouses()) {
+            throw new DomainException("«" + item.getName() + "» ще лежить на інших складах. "
+                    + "Спершу перемістіть або спишіть його там.");
+        }
         item.archive();
     }
 
@@ -117,9 +124,15 @@ public class StockService {
 
     public StockMovementDto adjust(int itemId, AdjustStockRequest request, int userId, String username) {
         StockItem item = requireItem(itemId);
-        StockMovement m = item.adjust(request.delta(), request.reason(), userId, username, LocalDateTime.now(clock));
+        // Without a warehouse it is the main stock: what lies at the warehouses is not used from here
+        StockMovement m = new StockPlacement(item, locations.findBalances(itemId))
+                .adjustAt(null, request.delta(), request.reason(), userId, username, LocalDateTime.now(clock));
         repository.add(m);
-        return new StockMovementDto(m.getId(), item.getId(), m.getDelta(), m.getStockBefore(), m.getStockAfter(),
+        return dto(m);
+    }
+
+    static StockMovementDto dto(StockMovement m) {
+        return new StockMovementDto(m.getId(), m.getItem().getId(), m.getDelta(), m.getStockBefore(), m.getStockAfter(),
                 m.getComment(), m.getUserId(), m.getUsername(), m.getCreatedAt());
     }
 
