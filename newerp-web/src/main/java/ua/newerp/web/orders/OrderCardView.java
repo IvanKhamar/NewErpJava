@@ -44,6 +44,7 @@ import ua.newerp.application.delivery.ShipmentRepository;
 import ua.newerp.application.delivery.ShipmentService;
 import ua.newerp.application.orders.AssignManagerRequest;
 import ua.newerp.application.orders.ChangeOrderStatusRequest;
+import ua.newerp.application.orders.NewOrderService;
 import ua.newerp.application.orders.OrderDetails;
 import ua.newerp.application.orders.OrderProductLine;
 import ua.newerp.application.orders.OrderQueries;
@@ -51,6 +52,8 @@ import ua.newerp.application.orders.OrderService;
 import ua.newerp.application.orders.OrderStatusDto;
 import ua.newerp.application.payments.BankPaymentDto;
 import ua.newerp.application.payments.BankPaymentService;
+import ua.newerp.application.payments.LiqPayService;
+import ua.newerp.application.returns.ReturnService;
 import ua.newerp.application.sms.SendSmsRequest;
 import ua.newerp.application.sms.SendSmsResultDto;
 import ua.newerp.application.sms.SmsDto;
@@ -61,6 +64,7 @@ import ua.newerp.web.Access;
 import ua.newerp.web.Fmt;
 import ua.newerp.web.auth.CurrentSession;
 import ua.newerp.web.ui.Actions;
+import ua.newerp.web.ui.Clipboard;
 import ua.newerp.web.ui.Confirm;
 import ua.newerp.web.ui.InfoTable;
 import ua.newerp.web.ui.Messages;
@@ -69,7 +73,8 @@ import ua.newerp.web.ui.StatusBadge;
 
 /**
  * The order card (OrderCard.razor): customer, products, status history; change of status and manager,
- * the waybill, receipt and bank payments, SMS to the customer. After each action the card is read again.
+ * the waybill, receipt, bank and card payments, SMS to the customer; dialogs for a new waybill, a new composition and
+ * a product return. After each action the card is read again.
  */
 @Route("orders/:id(\\d+)")
 @RolesAllowed({Access.ADMIN, Access.MANAGER})
@@ -85,6 +90,9 @@ public class OrderCardView extends VerticalLayout implements BeforeEnterObserver
     final Button assignManager = new Button("Призначити");
     final TextArea smsText = new TextArea("Текст");
     final Button sendSms = new Button(VaadinIcon.COMMENT.create());
+    final Button createReturn = new Button("Повернення", VaadinIcon.ARROW_BACKWARD.create());
+    final Button editComposition = new Button("Змінити склад", VaadinIcon.EDIT.create());
+    final Button createShipment = new Button("Створити ТТН", VaadinIcon.TRUCK.create());
 
     private final OrderQueries queries;
     private final OrderService orders;
@@ -95,6 +103,9 @@ public class OrderCardView extends VerticalLayout implements BeforeEnterObserver
     private final ShipmentService shipmentService;
     private final CashboxService cashbox;
     private final BankPaymentService bank;
+    private final LiqPayService liqPay;
+    private final NewOrderService composition;
+    private final ReturnService returns;
     private final CurrentSession session;
     private final Map<Integer, String> colors;
 
@@ -103,7 +114,7 @@ public class OrderCardView extends VerticalLayout implements BeforeEnterObserver
 
     public OrderCardView(OrderQueries queries, OrderService orders, SmsService sms, SmsLog smsLog, SmsSender smsSender,
             ShipmentRepository shipments, ShipmentService shipmentService, CashboxService cashbox, BankPaymentService bank,
-            CurrentSession session) {
+            LiqPayService liqPay, NewOrderService composition, ReturnService returns, CurrentSession session) {
         this.queries = queries;
         this.orders = orders;
         this.sms = sms;
@@ -113,6 +124,9 @@ public class OrderCardView extends VerticalLayout implements BeforeEnterObserver
         this.shipmentService = shipmentService;
         this.cashbox = cashbox;
         this.bank = bank;
+        this.liqPay = liqPay;
+        this.composition = composition;
+        this.returns = returns;
         this.session = session;
 
         List<OrderStatusDto> statuses = queries.listStatuses();
@@ -140,6 +154,11 @@ public class OrderCardView extends VerticalLayout implements BeforeEnterObserver
             sendSms.setEnabled(!e.getValue().isBlank());
         });
         sendSms.addClickListener(e -> sendSms(false));
+
+        createReturn.addClickListener(e -> createReturn());
+        editComposition.addClickListener(e -> editComposition());
+        createShipment.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        createShipment.addClickListener(e -> createShipment());
     }
 
     @Override
@@ -180,7 +199,7 @@ public class OrderCardView extends VerticalLayout implements BeforeEnterObserver
         var left = new Div(customer(), products(), history());
         var right = new Div(statusPanel(), managerPanel(), deliveryPanel());
         if (session.hasAnyRole(Access.FINANCE)) {
-            right.add(financePanel());
+            right.add(financePanel(), new LiqPayPanel(liqPay, id, order.total()));
         }
         right.add(smsPanel());
         var columns = new Div(left, right);
@@ -225,7 +244,32 @@ public class OrderCardView extends VerticalLayout implements BeforeEnterObserver
         grid.addThemeVariants(GridVariant.LUMO_COMPACT);
         grid.setItems(order.products());
         grid.setAllRowsVisible(true);
-        return new Panel("Товари", grid);
+        createReturn.setEnabled(!order.products().isEmpty());
+        var actions = new HorizontalLayout(createReturn, editComposition);
+        actions.addClassName(LumoUtility.Margin.Bottom.SMALL);
+        return new Panel("Товари", actions, grid);
+    }
+
+    void createReturn() {
+        Actions.run(null, () -> new CreateReturnDialog(returns, id, order.products(),
+                returnId -> Messages.success("Повернення №" + returnId + " оформлено.")).open());
+    }
+
+    void editComposition() {
+        int userId = session.user().orElseThrow().userId();
+        Actions.run(null, () -> new EditCompositionDialog(composition, id, userId, result -> {
+            Messages.success("Склад змінено. Сума: " + Fmt.money(result.total()) + ".");
+            result.warnings().forEach(Messages::warning);
+            reload();
+        }).open());
+    }
+
+    void createShipment() {
+        int userId = session.user().orElseThrow().userId();
+        Actions.run(null, () -> new CreateShipmentDialog(shipmentService, id, userId, shipment -> {
+            Messages.success("ТТН " + shipment.number() + " створено.");
+            reload();
+        }).open());
     }
 
     private Component history() {
@@ -295,13 +339,16 @@ public class OrderCardView extends VerticalLayout implements BeforeEnterObserver
         if (shipment == null) {
             var none = new Paragraph("ТТН ще не створено.");
             none.addClassName("secondary");
-            return new Panel("Доставка", none);
+            return new Panel("Доставка", none, createShipment);
         }
         var number = new Span(shipment.number());
         number.addClassNames("mono", LumoUtility.FontSize.LARGE);
         var state = new Span(shipment.status() == null || shipment.status().isEmpty() ? "статус ще не оновлювали" : shipment.status());
         state.addClassNames("status-badge", "tone-" + shipment.tone());
-        var top = new HorizontalLayout(number, state);
+        var copy = new Button(VaadinIcon.COPY.create(), e -> Clipboard.copy(shipment.number(), "Скопійовано."));
+        copy.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        copy.setAriaLabel("Скопіювати ТТН");
+        var top = new HorizontalLayout(number, copy, state);
         top.setDefaultVerticalComponentAlignment(FlexComponent.Alignment.CENTER);
 
         var info = new InfoTable();

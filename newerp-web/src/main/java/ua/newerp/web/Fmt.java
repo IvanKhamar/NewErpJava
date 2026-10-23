@@ -26,6 +26,15 @@ public final class Fmt {
         return value == null ? "—" : new DecimalFormat("#,##0.00", DecimalFormatSymbols.getInstance(UK)).format(value) + " ₴";
     }
 
+    /** A number for an input field: 1500.0000 from the database becomes 1500, 12.50 becomes 12.5. */
+    public static BigDecimal plain(BigDecimal value) {
+        if (value == null) {
+            return null;
+        }
+        BigDecimal stripped = value.stripTrailingZeros();
+        return stripped.scale() < 0 ? stripped.setScale(0) : stripped;
+    }
+
     public static String date(LocalDateTime value) {
         return value == null ? "—" : value.format(DATE_TIME);
     }
