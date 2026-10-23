@@ -8,6 +8,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -20,15 +21,23 @@ import com.vaadin.browserless.ViewPackages;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.confirmdialog.ConfirmDialog;
 import com.vaadin.flow.component.html.H3;
+import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.notification.Notification;
+import com.vaadin.flow.theme.lumo.LumoUtility;
 
 import ua.newerp.application.auth.CurrentUser;
 import ua.newerp.application.common.LookupItem;
 import ua.newerp.application.stock.AdjustStockRequest;
 import ua.newerp.application.stock.ApplyStocktakingRequest;
+import ua.newerp.application.stock.CategoryValueDto;
+import ua.newerp.application.stock.ItemConsumptionDto;
+import ua.newerp.application.stock.ModelOutputDto;
+import ua.newerp.application.stock.SizeOutputDto;
 import ua.newerp.application.stock.StockItemDto;
 import ua.newerp.application.stock.StockItemFilter;
 import ua.newerp.application.stock.StockMovementDto;
+import ua.newerp.application.stock.StockReportDto;
+import ua.newerp.application.stock.StockReportService;
 import ua.newerp.application.stock.StockRepository;
 import ua.newerp.application.stock.StockService;
 import ua.newerp.application.stock.StocktakingCountRequest;
@@ -36,10 +45,11 @@ import ua.newerp.application.stock.StocktakingLineDto;
 import ua.newerp.application.stock.StocktakingPreviewDto;
 import ua.newerp.application.stock.StocktakingResult;
 import ua.newerp.application.stock.StocktakingService;
+import ua.newerp.web.Fmt;
 import ua.newerp.web.auth.CurrentSession;
 
 /** The stock pages with mocked services; the materials are invented. */
-@ViewPackages(classes = {StockListView.class, StockItemView.class, StocktakingView.class})
+@ViewPackages(classes = {StockListView.class, StockItemView.class, StocktakingView.class, StockReportsView.class})
 class StockViewsTest extends BrowserlessTest {
 
     final StockRepository repository = mock(StockRepository.class);
@@ -149,5 +159,33 @@ class StockViewsTest extends BrowserlessTest {
         when(stocktaking.preview(sheet)).thenReturn(new StocktakingPreviewDto(List.of(), List.of("Рядок 3: «багато» — не кількість.")));
         view.uploadSheet(sheet);
         assertThat(view.uploadErrors.getElement().getTextRecursively()).contains("«багато»");
+    }
+
+    @Test
+    void reportsShowValuePaceAndOutputAndReloadForAnotherCover() {
+        var reports = mock(StockReportService.class);
+        BigDecimal zero = BigDecimal.ZERO;
+        var lowLinen = new ItemConsumptionDto(1, "Льон бежевий", "м", new BigDecimal("12"), zero, new BigDecimal("-1"),
+                new BigDecimal("0.4"), new BigDecimal("4.5"), zero, 11, new BigDecimal("8"), new BigDecimal("2560"));
+        var dress = new ModelOutputDto(1, "Сукня Весна", new BigDecimal("5"), new BigDecimal("3"), new BigDecimal("2"), zero, zero,
+                List.of(new SizeOutputDto(1, "S", new BigDecimal("5"), new BigDecimal("3"), new BigDecimal("2"), zero, zero)));
+        when(reports.get(any(Integer.class), any(Integer.class))).thenAnswer(a -> new StockReportDto(a.getArgument(0),
+                LocalDate.of(2026, 9, 24), a.getArgument(1), List.of(new CategoryValueDto(1, "Тканини", 1, new BigDecimal("1440"))),
+                new BigDecimal("1440"), List.of(lowLinen), new BigDecimal("2560"), List.of(dress)));
+
+        var view = new StockReportsView(reports);
+        UI.getCurrent().add(view);
+
+        verify(reports).get(30, 30);
+        assertThat(find(H3.class, view).all()).extracting(H3::getText)
+                .contains("Витрата розхідників з 24.09.2026 · замовити на " + Fmt.money(new BigDecimal("2560")));
+        // 11 days left is less than the 30 the order should cover: shown in red
+        var daysLeft = (Span) test(view.consumption).getCellComponent(0, 6);
+        assertThat(daysLeft.getText()).isEqualTo("11 дн.");
+        assertThat(daysLeft.getClassNames()).contains(LumoUtility.TextColor.ERROR);
+
+        view.coverDays.setValue(90);
+        verify(reports).get(30, 90);
+        assertThat(view.output.getGenericDataView().getItems()).hasSize(1);
     }
 }

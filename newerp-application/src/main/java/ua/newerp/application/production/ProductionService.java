@@ -31,6 +31,7 @@ import ua.newerp.domain.production.ProductionSize;
 import ua.newerp.domain.production.SewnBomLine;
 import ua.newerp.domain.stock.StockItem;
 import ua.newerp.domain.stock.StockMovement;
+import ua.newerp.domain.stock.Stocktaking;
 
 /**
  * Production use cases (based on the old site's StockTrack module): models, sizes, cut components, BOMs,
@@ -119,10 +120,7 @@ public class ProductionService {
                 .ifPresent(dup -> {
                     throw new DomainException("Деталь " + dup.componentId() + " розміру " + dup.sizeId() + " указано двічі.");
                 });
-        String comment = request.comment() == null || request.comment().isBlank()
-                ? "Інвентаризація"
-                : "Інвентаризація: " + request.comment().strip();
-        comment = comment.length() > 255 ? comment.substring(0, 255) : comment;
+        String comment = Stocktaking.comment(request.comment());
 
         LocalDateTime now = LocalDateTime.now(clock);
         var cut = new ArrayList<SizeChangeDto>();

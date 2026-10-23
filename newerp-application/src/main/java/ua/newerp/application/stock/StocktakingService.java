@@ -84,10 +84,7 @@ public class StocktakingService {
         request.counts().stream().filter(c -> !seen.add(c.itemId())).findFirst().ifPresent(dup -> {
             throw new DomainException("Позицію " + dup.itemId() + " указано двічі.");
         });
-        String comment = request.comment() == null || request.comment().isBlank()
-                ? "Інвентаризація"
-                : "Інвентаризація: " + request.comment().strip();
-        comment = comment.length() > 255 ? comment.substring(0, 255) : comment;
+        String comment = Stocktaking.comment(request.comment());
 
         // Sorted by id, so two stocktakings at once lock the rows in the same order and cannot deadlock
         List<StocktakingCountRequest> counts = request.counts().stream().sorted(Comparator.comparingInt(StocktakingCountRequest::itemId))

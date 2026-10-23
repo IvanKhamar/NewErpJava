@@ -13,6 +13,9 @@ import ua.newerp.domain.common.DomainException;
  */
 public final class Stocktaking {
 
+    /** The log comment of every stocktaking difference; reports tell corrections from real use by it. */
+    public static final String COMMENT = "Інвентаризація";
+
     public static final List<String> COLUMNS = List.of("ID", "Назва", "Категорія", "Од.", "За обліком", "Фактично");
 
     /** Quantities are stored with 3 decimals (decimal(12,3)). */
@@ -94,5 +97,11 @@ public final class Stocktaking {
         } catch (NumberFormatException e) {
             return null;
         }
+    }
+
+    /** "Інвентаризація" or "Інвентаризація: note", cut to the 255 characters of the log column. */
+    public static String comment(String note) {
+        String text = note == null || note.isBlank() ? COMMENT : COMMENT + ": " + note.strip();
+        return text.length() > 255 ? text.substring(0, 255) : text;
     }
 }

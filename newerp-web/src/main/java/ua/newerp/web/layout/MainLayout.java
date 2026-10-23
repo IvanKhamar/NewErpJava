@@ -43,6 +43,7 @@ import ua.newerp.web.production.SewingPlanView;
 import ua.newerp.web.stock.PurchaseOrderListView;
 import ua.newerp.web.stock.ReorderView;
 import ua.newerp.web.stock.StockListView;
+import ua.newerp.web.stock.StockReportsView;
 import ua.newerp.web.stock.StocktakingView;
 import ua.newerp.web.stock.SuppliersView;
 
@@ -93,6 +94,7 @@ public class MainLayout extends AppLayout implements BeforeEnterObserver {
             nav.addItem(new SideNavItem("Що дозамовити", ReorderView.class, VaadinIcon.LIST.create()));
             nav.addItem(new SideNavItem("Закупівлі", PurchaseOrderListView.class, VaadinIcon.PACKAGE.create()));
             nav.addItem(new SideNavItem("Постачальники", SuppliersView.class, VaadinIcon.FACTORY.create()));
+            nav.addItem(new SideNavItem("Звіти складу", StockReportsView.class, VaadinIcon.BAR_CHART.create()));
             nav.addItem(new SideNavItem("Моделі", ModelListView.class, VaadinIcon.SCISSORS.create()));
             nav.addItem(new SideNavItem("План пошиву", SewingPlanView.class, VaadinIcon.CALENDAR_CLOCK.create()));
             nav.addItem(new SideNavItem("План крою", CuttingPlanView.class, VaadinIcon.SCISSORS.create()));
