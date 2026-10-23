@@ -13,6 +13,10 @@ public final class Messages {
         show(text, NotificationVariant.LUMO_SUCCESS);
     }
 
+    public static void warning(String text) {
+        show(text, NotificationVariant.LUMO_WARNING);
+    }
+
     public static void error(String text) {
         show(text, NotificationVariant.LUMO_ERROR);
     }

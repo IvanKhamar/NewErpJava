@@ -38,3 +38,63 @@
     margin: 0;
     color: var(--lumo-secondary-text-color);
 }
+
+.panel {
+    padding: var(--lumo-space-m);
+    margin-bottom: var(--lumo-space-m);
+    border: 1px solid var(--lumo-contrast-10pct);
+    border-radius: var(--lumo-border-radius-l);
+}
+
+.panel h4 {
+    margin: 0 0 var(--lumo-space-s);
+}
+
+.info-table {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: var(--lumo-space-xs) var(--lumo-space-m);
+}
+
+.info-label {
+    color: var(--lumo-secondary-text-color);
+}
+
+.pre-line {
+    white-space: pre-line;
+}
+
+.two-columns {
+    display: grid;
+    grid-template-columns: 7fr 5fr;
+    gap: var(--lumo-space-m);
+    width: 100%;
+}
+
+@media (max-width: 960px) {
+    .two-columns {
+        grid-template-columns: 1fr;
+    }
+}
+
+.note {
+    padding: var(--lumo-space-s);
+    margin-top: var(--lumo-space-s);
+    border-radius: var(--lumo-border-radius-m);
+    background-color: var(--lumo-contrast-5pct);
+}
+
+.secondary {
+    color: var(--lumo-secondary-text-color);
+    font-size: var(--lumo-font-size-s);
+}
+
+.mono {
+    font-family: monospace;
+}
+
+/* Waybill status: 0 info, 1 success, 2 warning, 3 error (ShipmentTone) */
+.tone-0 { background-color: var(--lumo-primary-color-10pct); color: var(--lumo-primary-text-color); }
+.tone-1 { background-color: var(--lumo-success-color-10pct); color: var(--lumo-success-text-color); }
+.tone-2 { background-color: var(--lumo-warning-color-10pct, #fff3cd); color: var(--lumo-warning-text-color, #8a6d00); }
+.tone-3 { background-color: var(--lumo-error-color-10pct); color: var(--lumo-error-text-color); }
