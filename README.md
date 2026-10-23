@@ -68,6 +68,11 @@ newerp:
 
 Then open http://localhost:8080/app/. Without `newerp.web-root` the app runs as an API only.
 
+## Deploy
+
+One jar with Tomcat inside: `.\mvnw.cmd -DskipTests package`, then `start-newerp.cmd`, or the `Dockerfile`.
+Settings, the `prod` profile and running as a Windows service: [docs/deploy.md](docs/deploy.md).
+
 ## Tests
 
 ```
