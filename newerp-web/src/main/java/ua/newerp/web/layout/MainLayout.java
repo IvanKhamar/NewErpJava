@@ -26,6 +26,7 @@ import ua.newerp.web.home.HomeView;
 import ua.newerp.web.finance.BankPaymentsView;
 import ua.newerp.web.finance.CashboxView;
 import ua.newerp.web.locations.LocationsView;
+import ua.newerp.web.partners.PartnerListView;
 import ua.newerp.web.orders.OrderListView;
 import ua.newerp.web.reports.ReportsView;
 import ua.newerp.web.returns.ReturnListView;
@@ -94,6 +95,7 @@ public class MainLayout extends AppLayout implements BeforeEnterObserver {
             nav.addItem(new SideNavItem("Доставка", DeliveryView.class, VaadinIcon.TRUCK.create()));
             nav.addItem(new SideNavItem("Звіти", ReportsView.class, VaadinIcon.CHART.create()));
             nav.addItem(new SideNavItem("Склади й пункти видачі", LocationsView.class, VaadinIcon.SHOP.create()));
+            nav.addItem(new SideNavItem("Партнери", PartnerListView.class, VaadinIcon.CONNECT.create()));
         }
         if (session.hasAnyRole(Access.FINANCE)) {
             nav.addItem(new SideNavItem("Каса", CashboxView.class, VaadinIcon.CASH.create()));
