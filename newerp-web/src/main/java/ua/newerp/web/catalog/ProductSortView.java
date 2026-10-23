@@ -98,6 +98,8 @@ public class ProductSortView extends VerticalLayout {
         days.setMaxWidth("9rem");
         from.addValueChangeListener(e -> days.setEnabled(from.isEmpty() || to.isEmpty()));
         to.addValueChangeListener(e -> days.setEnabled(from.isEmpty() || to.isEmpty()));
+        from.setLocale(Fmt.UK);
+        to.setLocale(Fmt.UK);
         from.setMaxWidth("10rem");
         to.setMaxWidth("10rem");
         previewButton.addClickListener(e -> showPreview());

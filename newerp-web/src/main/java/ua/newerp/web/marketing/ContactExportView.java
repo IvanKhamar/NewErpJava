@@ -30,6 +30,7 @@ import ua.newerp.application.marketing.MarketingService;
 import ua.newerp.domain.marketing.ContactField;
 import ua.newerp.domain.marketing.ContactSource;
 import ua.newerp.web.Access;
+import ua.newerp.web.Fmt;
 
 /** Contacts for a mailing as CSV (ContactExport.razor): unique phones or e-mails with the name and city of the last order. */
 @Route("marketing/export")
@@ -64,6 +65,8 @@ public class ContactExportView extends VerticalLayout {
         questions.addValueChangeListener(e -> update());
         subscribers.addValueChangeListener(e -> update());
 
+        from.setLocale(Fmt.UK);
+        to.setLocale(Fmt.UK);
         download.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         var link = new Anchor(DownloadHandler.fromInputStream(e -> {
             byte[] csv = csv();

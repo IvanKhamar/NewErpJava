@@ -17,6 +17,7 @@ import jakarta.annotation.security.PermitAll;
 import ua.newerp.application.auth.CurrentUser;
 import ua.newerp.application.reports.ReportService;
 import ua.newerp.web.Access;
+import ua.newerp.web.admin.UsersView;
 import ua.newerp.web.auth.CurrentSession;
 import ua.newerp.web.finance.BankPaymentsView;
 import ua.newerp.web.finance.CashboxView;
@@ -59,6 +60,9 @@ public class HomeView extends VerticalLayout {
             cards.add(card(CashboxView.class, VaadinIcon.CASH, "Каса", "Зміни касирів Checkbox, фіскальні чеки до замовлень, X- і Z-звіти."));
             cards.add(card(BankPaymentsView.class, VaadinIcon.PIGGY_BANK, "Надходження на рахунок",
                     "Виписка ПриватБанку й прив'язка платежів до замовлень."));
+        }
+        if (session.hasAnyRole(Access.ADMIN)) {
+            cards.add(card(UsersView.class, VaadinIcon.USERS, "Користувачі", "Доступ до NewErp, ролі, тимчасові паролі."));
         }
         add(cards);
     }
