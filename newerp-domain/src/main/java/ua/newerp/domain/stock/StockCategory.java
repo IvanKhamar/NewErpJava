@@ -12,6 +12,10 @@ public class StockCategory {
     }
 
     public StockCategory(String name, int sortOrder) {
+        update(name, sortOrder);
+    }
+
+    public void update(String name, int sortOrder) {
         this.name = Text.require(name, "Назва категорії", 100);
         this.sortOrder = sortOrder;
     }

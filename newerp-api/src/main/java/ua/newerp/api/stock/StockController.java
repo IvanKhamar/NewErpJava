@@ -6,6 +6,7 @@ import java.util.List;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -63,6 +64,19 @@ class StockController {
         return created("/stock/categories/", service.createCategory(request));
     }
 
+    @PutMapping("/categories/{id:\\d+}")
+    ResponseEntity<Void> updateCategory(@PathVariable int id, @RequestBody CreateStockCategoryRequest request) {
+        service.updateCategory(id, request);
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/categories/{id:\\d+}")
+    @Operation(summary = "Видалити порожню категорію (без жодної позиції, і архівної теж)")
+    ResponseEntity<Void> deleteCategory(@PathVariable int id) {
+        service.deleteCategory(id);
+        return ResponseEntity.noContent().build();
+    }
+
     @GetMapping("/suppliers")
     List<StockSupplierDto> suppliers() {
         return repository.listSuppliers();
@@ -71,6 +85,19 @@ class StockController {
     @PostMapping("/suppliers")
     ResponseEntity<CreatedId> createSupplier(@RequestBody CreateStockSupplierRequest request) {
         return created("/stock/suppliers/", service.createSupplier(request));
+    }
+
+    @PutMapping("/suppliers/{id:\\d+}")
+    ResponseEntity<Void> updateSupplier(@PathVariable int id, @RequestBody CreateStockSupplierRequest request) {
+        service.updateSupplier(id, request);
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/suppliers/{id:\\d+}")
+    @Operation(summary = "Видалити постачальника, на якого не посилаються ні позиції, ні закупівлі")
+    ResponseEntity<Void> deleteSupplier(@PathVariable int id) {
+        service.deleteSupplier(id);
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/items")
@@ -113,6 +140,14 @@ class StockController {
     StockMovementDto adjust(@PathVariable int id, @RequestBody AdjustStockRequest request,
             @AuthenticationPrincipal AuthenticatedUser user) {
         return service.adjust(id, request, user.user().userId(), user.user().username());
+    }
+
+    @PostMapping("/items/{id:\\d+}/archive")
+    @Operation(summary = "Прибрати позицію в архів (status = 0): лише без залишку, не в специфікаціях активних моделей "
+            + "і не у відкритих закупівлях; журнал руху лишається")
+    ResponseEntity<Void> archive(@PathVariable int id) {
+        service.archiveItem(id);
+        return ResponseEntity.noContent().build();
     }
 
     @PutMapping("/items/{id:\\d+}/min-quantity")

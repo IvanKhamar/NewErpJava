@@ -18,8 +18,11 @@ import org.junit.jupiter.api.Test;
 import com.vaadin.browserless.BrowserlessTest;
 import com.vaadin.browserless.ViewPackages;
 import com.vaadin.flow.component.UI;
+import com.vaadin.flow.component.confirmdialog.ConfirmDialog;
 
 import ua.newerp.application.auth.CurrentUser;
+import ua.newerp.application.common.LookupItem;
+import ua.newerp.application.stock.CreateStockCategoryRequest;
 import ua.newerp.application.stock.CreateStockSupplierRequest;
 import ua.newerp.application.stock.PurchaseOrderDto;
 import ua.newerp.application.stock.PurchaseOrderFilter;
@@ -36,6 +39,7 @@ import ua.newerp.application.stock.ReorderService;
 import ua.newerp.application.stock.SetPurchaseOrderLinesRequest;
 import ua.newerp.application.stock.StockRepository;
 import ua.newerp.application.stock.StockService;
+import ua.newerp.application.stock.StockSupplierDto;
 import ua.newerp.application.stock.SupplierReorderDto;
 import ua.newerp.domain.stock.PurchaseOrder;
 import ua.newerp.web.auth.CurrentSession;
@@ -136,5 +140,34 @@ class PurchasingViewsTest extends BrowserlessTest {
 
         verify(stockService).createSupplier(new CreateStockSupplierRequest("Фурнітура Плюс", "+380671234567", "", "", ""));
         assertThat(view.name.getValue()).isEmpty();
+    }
+
+    @Test
+    void editsAndDeletesASupplierAndRenamesACategory() {
+        var stock = mock(StockRepository.class);
+        var stockService = mock(StockService.class);
+        var supplier = new StockSupplierDto(2, "Ґудзик і Ко", "", "", "фурнітура", "");
+        when(stock.listSuppliers()).thenReturn(List.of(supplier));
+        when(stock.listCategories()).thenReturn(List.of(new LookupItem(1, "Тканини")));
+        var view = new SuppliersView(stock, stockService);
+        UI.getCurrent().add(view);
+        roundTrip();
+
+        view.edit(supplier);
+        assertThat(view.deleteSupplier.isVisible()).isTrue();
+        test(view.phone).setValue("+380501234567");
+        test(view.addSupplier).click();
+        verify(stockService).updateSupplier(2, new CreateStockSupplierRequest("Ґудзик і Ко", "+380501234567", "", "фурнітура", ""));
+        assertThat(view.editing).isNull();
+
+        view.edit(supplier);
+        test(view.deleteSupplier).click();
+        test(find(ConfirmDialog.class).single()).confirm();
+        verify(stockService).deleteSupplier(2);
+
+        view.renameCategory(new LookupItem(1, "Тканини"), "Тканини й трикотаж");
+        verify(stockService).updateCategory(1, new CreateStockCategoryRequest("Тканини й трикотаж", null));
+        view.deleteCategory(new LookupItem(1, "Тканини"));
+        verify(stockService).deleteCategory(1);
     }
 }

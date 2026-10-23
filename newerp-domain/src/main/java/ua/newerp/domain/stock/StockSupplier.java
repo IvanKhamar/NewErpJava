@@ -16,6 +16,10 @@ public class StockSupplier {
     }
 
     public StockSupplier(String name, String phone, String email, String categories, String notes) {
+        update(name, phone, email, categories, notes);
+    }
+
+    public void update(String name, String phone, String email, String categories, String notes) {
         this.name = Text.require(name, "Назва постачальника", 150);
         this.phone = Text.orEmpty(phone);
         this.email = Text.orEmpty(email);

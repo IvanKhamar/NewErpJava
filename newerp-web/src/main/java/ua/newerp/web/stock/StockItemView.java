@@ -34,6 +34,7 @@ import ua.newerp.web.Access;
 import ua.newerp.web.Fmt;
 import ua.newerp.web.auth.CurrentSession;
 import ua.newerp.web.ui.Actions;
+import ua.newerp.web.ui.Confirm;
 import ua.newerp.web.ui.InfoTable;
 import ua.newerp.web.ui.Messages;
 import ua.newerp.web.ui.Panel;
@@ -47,6 +48,7 @@ public class StockItemView extends VerticalLayout implements BeforeEnterObserver
     final Button saveMinimum = new Button("Зберегти");
     final Button edit = new Button("Змінити", VaadinIcon.EDIT.create());
     final Button adjust = new Button("Прихід або витрата", VaadinIcon.EXCHANGE.create());
+    final Button archive = new Button("Прибрати в архів");
 
     private final StockRepository repository;
     private final StockService service;
@@ -65,6 +67,10 @@ public class StockItemView extends VerticalLayout implements BeforeEnterObserver
             Messages.success("Зміни збережено.");
             open(id);
         }).open());
+        archive.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_ERROR);
+        archive.addClickListener(e -> Confirm.ask("Прибрати в архів?",
+                "«" + item.name() + "» зникне зі списків, журнал руху лишиться. Можна лише без залишку.", "Прибрати", "Скасувати",
+                this::archive));
         adjust.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         adjust.addClickListener(e -> new AdjustStockDialog(service, item, session.user().orElseThrow(), movement -> open(id)).open());
     }
@@ -89,7 +95,7 @@ public class StockItemView extends VerticalLayout implements BeforeEnterObserver
         }
         var title = new H2(item.name());
         title.addClassName(LumoUtility.Margin.End.AUTO);
-        var header = new HorizontalLayout(title, edit, adjust);
+        var header = new HorizontalLayout(title, archive, edit, adjust);
         header.setWidthFull();
         header.setDefaultVerticalComponentAlignment(FlexComponent.Alignment.CENTER);
 
@@ -118,6 +124,13 @@ public class StockItemView extends VerticalLayout implements BeforeEnterObserver
         var columns = new Div(new Div(new Panel("Журнал руху", movements(repository.listMovements(id)))), new Div(stock));
         columns.addClassName("two-columns");
         add(back(), header, columns);
+    }
+
+    void archive() {
+        Actions.run("«" + item.name() + "» прибрано в архів.", () -> {
+            service.archiveItem(id);
+            getUI().ifPresent(ui -> ui.navigate(StockListView.class));
+        });
     }
 
     void saveMinimum() {
