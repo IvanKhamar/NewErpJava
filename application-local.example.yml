@@ -34,6 +34,17 @@ checkbox:
 #      password: cashier-password
 #      license-key: cash-register-license-key
 
+# PrivatBank statement (Автоклієнт). Without accounts the import asks nothing and returns clientConfigured = false.
+#privat-bank:
+#  accounts:
+#    - id: UA000000000000000000000000000
+#      token: autoclient-token
+
+# LiqPay card payments. Without keys the payment links are test ones (isTest = true).
+#liq-pay:
+#  public-key: sandbox_i00000000
+#  private-key: sandbox_private-key
+
 # Web UI: the published Blazor app (dotnet publish src/NewErp.Web -c Release -o <folder>), see README.
 #newerp:
 #  web-root: F:/PROJECTS/newerp-web/wwwroot

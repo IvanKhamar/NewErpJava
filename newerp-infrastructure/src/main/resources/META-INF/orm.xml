@@ -332,6 +332,26 @@
         </attributes>
     </entity>
 
+    <!-- ═══ Payments: the old site's PrivatBank statement (amounts are text like "1500.00 UAH") ═══ -->
+
+    <entity class="ua.newerp.domain.payments.BankPayment">
+        <table name="dd_privatbank"/>
+        <attributes>
+            <id name="id"><column name="payment_id"/><generated-value strategy="IDENTITY"/></id>
+            <basic name="orderId"/>
+            <basic name="appCode"><column name="appcode"/></basic>
+            <basic name="card"/>
+            <basic name="amountText"><column name="amount"/></basic>
+            <basic name="cardAmountText"><column name="cardamount"/></basic>
+            <basic name="restText"><column name="rest"/></basic>
+            <basic name="description"><column name="description" column-definition="text"/></basic>
+            <basic name="terminal"/>
+            <basic name="tranDate"><column name="trandate"/></basic>
+            <basic name="tranTime"><column name="trantime"/></basic>
+            <basic name="visible"><column name="show_status"/></basic>
+        </attributes>
+    </entity>
+
     <!-- Embeddables go after all entities: the XML schema fixes the order of elements. -->
     <embeddable class="ua.newerp.domain.production.ProductionProductLink">
         <attributes>
