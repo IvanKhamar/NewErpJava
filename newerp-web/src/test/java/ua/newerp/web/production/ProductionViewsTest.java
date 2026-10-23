@@ -8,7 +8,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -19,6 +21,7 @@ import com.vaadin.browserless.ViewPackages;
 import com.vaadin.flow.component.UI;
 
 import ua.newerp.application.auth.CurrentUser;
+import ua.newerp.application.production.ComponentDto;
 import ua.newerp.application.production.ProductionLogFilter;
 import ua.newerp.application.production.ProductionModelDto;
 import ua.newerp.application.production.ProductionModelFilter;
@@ -31,21 +34,33 @@ import ua.newerp.application.production.ProductionService;
 import ua.newerp.application.production.ProductionSizeDto;
 import ua.newerp.application.production.SaveProductionModelRequest;
 import ua.newerp.application.production.SizeQuantity;
+import ua.newerp.application.production.SetProductionLinksRequest;
+import ua.newerp.application.production.SetSewnBomRequest;
+import ua.newerp.application.production.SewingPlanDto;
+import ua.newerp.application.production.SewingPlanRowDto;
+import ua.newerp.application.production.SewingPlanService;
+import ua.newerp.application.production.SewnBomRowRequest;
+import ua.newerp.application.production.SizeOptionRequest;
 import ua.newerp.application.production.SizeRequest;
+import ua.newerp.application.stock.StockItemDto;
+import ua.newerp.application.stock.StockRepository;
 import ua.newerp.domain.production.ProductionModel;
 import ua.newerp.web.auth.CurrentSession;
 
 /** The production pages with mocked services; the models are invented. */
-@ViewPackages(classes = {ModelListView.class, ProductionLogView.class})
+@ViewPackages(classes = {ModelListView.class, ProductionLogView.class, SewingPlanView.class})
 class ProductionViewsTest extends BrowserlessTest {
 
     final ProductionRepository repository = mock(ProductionRepository.class);
     final ProductionService service = mock(ProductionService.class);
+    final StockRepository stock = mock(StockRepository.class);
     final CurrentSession session = mock(CurrentSession.class);
     final ProductionModelDto dress = new ProductionModelDto(4, "Сукня льняна", ProductionModel.CLOTHING, 30, 0,
             List.of(new ProductionSizeDto(41, "S", new BigDecimal("40"), new BigDecimal("6"), new BigDecimal("10"), null),
                     new ProductionSizeDto(42, "M", new BigDecimal("60"), new BigDecimal("4"), new BigDecimal("5"), null)),
-            List.of(), List.of(), List.of(), List.of());
+            List.of(), List.of(), List.of(new ComponentDto(7, "Перед", 1, Map.of(41, BigDecimal.TWO), List.of())), List.of());
+    final StockItemDto linen = new StockItemDto(1, "Льон бежевий", "м", 1, "Тканини", null, null, BigDecimal.TEN, BigDecimal.ONE, false,
+            "", BigDecimal.ZERO);
 
     @BeforeEach
     void setUp() {
@@ -75,7 +90,7 @@ class ProductionViewsTest extends BrowserlessTest {
     void sewnOperationSendsOnlySizesWithAQuantityAndShowsWarnings() {
         when(service.record(any(Integer.class), any(), any(), any(Integer.class), any())).thenReturn(
                 new ProductionOperationResult(List.of(), List.of("Бракує льону: 1,5 м")));
-        var view = new ModelCardView(repository, service, session);
+        var view = new ModelCardView(repository, service, stock, session);
         UI.getCurrent().add(view);
         view.open(4);
         roundTrip();
@@ -94,7 +109,7 @@ class ProductionViewsTest extends BrowserlessTest {
 
     @Test
     void emptyOperationIsNotSent() {
-        var view = new ModelCardView(repository, service, session);
+        var view = new ModelCardView(repository, service, stock, session);
         UI.getCurrent().add(view);
         view.open(4);
         roundTrip();
@@ -117,6 +132,54 @@ class ProductionViewsTest extends BrowserlessTest {
         verify(service).createModel(new SaveProductionModelRequest("Сорочка",
                 List.of(size("S"), size("M"), size("L"), size("XL")), ProductionModel.CLOTHING, 30, 0));
         assertThat(saved[0]).isEqualTo(9);
+    }
+
+    @Test
+    void sewnBomMixesComponentsAndConsumables() {
+        var dialog = new BomDialog(service, dress, null, List.of(linen), () -> { });
+        dialog.open();
+        roundTrip();
+        assertThat(dialog.choices()).extracting(BomDialog.Choice::label).containsExactly("Деталь: Перед", "Льон бежевий (м)");
+
+        dialog.addRow(null, dialog.choices().get(0), BigDecimal.ONE);
+        dialog.addRow(42, dialog.choices().get(1), new BigDecimal("0.2"));
+        test(dialog.save).click();
+
+        verify(service).setSewnBom(4, new SetSewnBomRequest(List.of(
+                new SewnBomRowRequest(null, 7, null, BigDecimal.ONE),
+                new SewnBomRowRequest(42, null, 1, new BigDecimal("0.2")))));
+    }
+
+    @Test
+    void linksRejectAProductIdThatIsNotANumber() {
+        var links = new LinksPanel(service, dress, () -> { });
+        UI.getCurrent().add(links);
+
+        test(links.productIds).setValue("101, abc");
+        test(links.save).click();
+        verify(service, never()).setLinks(any(Integer.class), any());
+
+        test(links.productIds).setValue("101; 102 101");
+        test(links.options.get(41)).setValue(55);
+        test(links.save).click();
+        verify(service).setLinks(4, new SetProductionLinksRequest(List.of(101, 102), List.of(),
+                List.of(new SizeOptionRequest(41, 55), new SizeOptionRequest(42, null))));
+    }
+
+    @Test
+    void sewingPlanReloadsWhenTheFilterChanges() {
+        var plans = mock(SewingPlanService.class);
+        var row = new SewingPlanRowDto(4, "Сукня льняна", 41, "S", BigDecimal.TWO, BigDecimal.TWO, BigDecimal.ZERO, BigDecimal.ONE,
+                BigDecimal.TWO, BigDecimal.ONE, BigDecimal.ONE, LocalDate.of(2026, 10, 30), false, List.of(1001));
+        when(plans.get(true)).thenReturn(new SewingPlanDto(1, List.of(), List.of()));
+        when(plans.get(false)).thenReturn(new SewingPlanDto(1, List.of(row), List.of()));
+        var view = new SewingPlanView(plans);
+        UI.getCurrent().add(view);
+        assertThat(view.plan.rows()).isEmpty();
+
+        test(view.onlyToSew).click();
+
+        assertThat(view.plan.rows()).containsExactly(row);
     }
 
     private static SizeRequest size(String name) {

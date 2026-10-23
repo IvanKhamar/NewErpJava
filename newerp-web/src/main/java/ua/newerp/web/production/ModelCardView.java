@@ -27,6 +27,8 @@ import ua.newerp.application.production.ProductionModelDto;
 import ua.newerp.application.production.ProductionRepository;
 import ua.newerp.application.production.ProductionService;
 import ua.newerp.application.production.ProductionSizeDto;
+import ua.newerp.application.stock.StockItemFilter;
+import ua.newerp.application.stock.StockRepository;
 import ua.newerp.web.Access;
 import ua.newerp.web.Fmt;
 import ua.newerp.web.auth.CurrentSession;
@@ -34,7 +36,7 @@ import ua.newerp.web.ui.Actions;
 import ua.newerp.web.ui.Confirm;
 import ua.newerp.web.ui.Messages;
 
-/** A production model (ModelCard.razor): sewn total against the minimum, stock operations by size and the log. */
+/** A production model (ModelCard.razor): sewn total against the minimum, stock operations, BOMs, shop links and the log. */
 @Route("production/models/:id(\\d+)")
 @RolesAllowed({Access.ADMIN, Access.STOREKEEPER})
 public class ModelCardView extends VerticalLayout implements BeforeEnterObserver, HasDynamicTitle {
@@ -46,13 +48,15 @@ public class ModelCardView extends VerticalLayout implements BeforeEnterObserver
 
     private final ProductionRepository repository;
     private final ProductionService service;
+    private final StockRepository stock;
     private final CurrentSession session;
     private int id;
     private ProductionModelDto model;
 
-    public ModelCardView(ProductionRepository repository, ProductionService service, CurrentSession session) {
+    public ModelCardView(ProductionRepository repository, ProductionService service, StockRepository stock, CurrentSession session) {
         this.repository = repository;
         this.service = service;
+        this.stock = stock;
         this.session = session;
         edit.addClickListener(e -> new ModelDialog(service, model, saved -> {
             Messages.success("Зміни збережено.");
@@ -106,6 +110,9 @@ public class ModelCardView extends VerticalLayout implements BeforeEnterObserver
         operations = new OperationPanel(service, model, session.user().orElseThrow(), () -> open(id));
         operations.showWarnings(warnings);
         tabs.add("Залишки й операції", operations);
+        tabs.add("Специфікації", new SpecificationsPanel(service, model,
+                () -> stock.listItems(new StockItemFilter(null, null)), () -> open(id)));
+        tabs.add("Прив'язка до магазину", new LinksPanel(service, model, () -> open(id)));
         tabs.add("Журнал", log());
         tabs.setSelectedIndex(Math.max(selected, 0));
         add(back(), header, total, tabs);
