@@ -227,6 +227,25 @@ class JpaProductionRepository implements ProductionRepository, SewingPlanSource 
     }
 
     @Override
+    public List<ProductionModel> getActiveClothingModels() {
+        return em.createQuery("SELECT m FROM ProductionModel m WHERE m.active = true AND m.type = :type", ProductionModel.class)
+                .setParameter("type", ProductionModel.CLOTHING)
+                .getResultList();
+    }
+
+    @Override
+    public List<ProductionComponent> getComponents(Collection<Integer> productionIds) {
+        if (productionIds.isEmpty()) {
+            return List.of();
+        }
+        return em.createQuery("""
+                SELECT c FROM ProductionComponent c WHERE c.productionId IN :ids ORDER BY c.sortOrder, c.name
+                """, ProductionComponent.class)
+                .setParameter("ids", productionIds)
+                .getResultList();
+    }
+
+    @Override
     public List<ProductionModel> findModels(Collection<Integer> productionIds) {
         if (productionIds.isEmpty()) {
             return List.of();

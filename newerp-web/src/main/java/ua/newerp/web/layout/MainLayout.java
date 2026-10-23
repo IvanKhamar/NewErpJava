@@ -36,6 +36,7 @@ import ua.newerp.web.marketing.ContactExportView;
 import ua.newerp.web.orders.OrderListView;
 import ua.newerp.web.reports.ReportsView;
 import ua.newerp.web.returns.ReturnListView;
+import ua.newerp.web.production.CuttingPlanView;
 import ua.newerp.web.production.ModelListView;
 import ua.newerp.web.production.ProductionLogView;
 import ua.newerp.web.production.SewingPlanView;
@@ -92,6 +93,7 @@ public class MainLayout extends AppLayout implements BeforeEnterObserver {
             nav.addItem(new SideNavItem("Постачальники", SuppliersView.class, VaadinIcon.FACTORY.create()));
             nav.addItem(new SideNavItem("Моделі", ModelListView.class, VaadinIcon.SCISSORS.create()));
             nav.addItem(new SideNavItem("План пошиву", SewingPlanView.class, VaadinIcon.CALENDAR_CLOCK.create()));
+            nav.addItem(new SideNavItem("План крою", CuttingPlanView.class, VaadinIcon.SCISSORS.create()));
             nav.addItem(new SideNavItem("Журнал пошиву", ProductionLogView.class, VaadinIcon.CLIPBOARD_TEXT.create()));
         }
         if (session.hasAnyRole(Access.ORDERS)) {
