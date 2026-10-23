@@ -16,6 +16,7 @@ import com.vaadin.flow.theme.lumo.LumoUtility;
 import jakarta.annotation.security.PermitAll;
 import ua.newerp.application.auth.CurrentUser;
 import ua.newerp.application.reports.ReportService;
+import ua.newerp.application.stock.StockAlertService;
 import ua.newerp.web.Access;
 import ua.newerp.web.admin.UsersView;
 import ua.newerp.web.auth.CurrentSession;
@@ -31,7 +32,7 @@ import ua.newerp.web.stock.StockListView;
 @PermitAll
 public class HomeView extends VerticalLayout {
 
-    public HomeView(CurrentSession session, ReportService reports) {
+    public HomeView(CurrentSession session, ReportService reports, StockAlertService alerts) {
         String name = session.user().map(CurrentUser::fullName).filter(n -> !n.isBlank())
                 .or(() -> session.user().map(CurrentUser::username)).orElse("");
         add(new H2("Вітаємо, " + name + "!"));
@@ -41,6 +42,16 @@ public class HomeView extends VerticalLayout {
             } catch (RuntimeException e) {
                 // The summary is a bonus: the page still works without it.
                 var warning = new Paragraph("Зведення продажів зараз недоступне: " + e.getMessage());
+                warning.addClassNames("note", "tone-2");
+                add(warning);
+            }
+        }
+
+        if (session.hasAnyRole(Access.STOCK)) {
+            try {
+                add(new StockAlertsPanel(alerts.get()));
+            } catch (RuntimeException e) {
+                var warning = new Paragraph("Залишки зараз недоступні: " + e.getMessage());
                 warning.addClassNames("note", "tone-2");
                 add(warning);
             }
