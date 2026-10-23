@@ -12,6 +12,9 @@ public class SmsMessage {
     /** A sane limit: longer is several SMS already, and the manager most likely made a mistake. */
     public static final int MAX_LENGTH = 670;
 
+    /** The pre_order_id value the old site marks birthday greeting SMS with. */
+    public static final int BIRTHDAY_MARKER = 1;
+
     private static final Pattern NON_DIGITS = Pattern.compile("\\D");
     private static final Pattern TTN_NUMBER = Pattern.compile("(?<!\\d)\\d{14}(?!\\d)");
 
@@ -32,6 +35,13 @@ public class SmsMessage {
         this.text = text;
         this.response = response;
         this.sentAt = sentAt;
+    }
+
+    /** A birthday greeting: without an order, marked with BIRTHDAY_MARKER. */
+    public static SmsMessage birthday(String phone, String text, String response, LocalDateTime sentAt) {
+        var message = new SmsMessage(0, phone, text, response, sentAt);
+        message.preOrderId = BIRTHDAY_MARKER;
+        return message;
     }
 
     public static String requireText(String text) {
@@ -73,7 +83,7 @@ public class SmsMessage {
         return orderId;
     }
 
-    /** Pre-order; NewErp does not support them yet, so always 0. */
+    /** Despite the name, the old site writes 1 here for birthday greetings (BIRTHDAY_MARKER), otherwise 0. */
     public int getPreOrderId() {
         return preOrderId;
     }
