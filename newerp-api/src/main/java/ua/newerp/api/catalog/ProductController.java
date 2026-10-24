@@ -3,7 +3,9 @@ package ua.newerp.api.catalog;
 import java.util.List;
 
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -13,6 +15,7 @@ import ua.newerp.application.catalog.ProductCardDto;
 import ua.newerp.application.catalog.ProductFilter;
 import ua.newerp.application.catalog.ProductListItem;
 import ua.newerp.application.catalog.ProductService;
+import ua.newerp.application.catalog.UpdateProductRequest;
 import ua.newerp.application.common.LookupItem;
 import ua.newerp.application.common.PagedResult;
 
@@ -38,6 +41,13 @@ class ProductController {
     @Operation(summary = "Картка товару: розміри із залишками (лише для читання), мітки й категорії")
     ProductCardDto get(@PathVariable int id) {
         return service.get(id);
+    }
+
+    @PatchMapping("/{id:\\d+}")
+    @Operation(summary = "Змінити ціну, увімкнення, мітки або категорії (null — без змін); dateModified з картки обов'язковий, "
+            + "якщо товар змінили після цього — 409")
+    ProductCardDto update(@PathVariable int id, @RequestBody UpdateProductRequest request) {
+        return service.update(id, request);
     }
 
     @GetMapping("/labels")
