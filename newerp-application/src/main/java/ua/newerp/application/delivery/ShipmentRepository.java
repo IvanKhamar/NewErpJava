@@ -29,6 +29,9 @@ public interface ShipmentRepository {
 
     Optional<OrderShippingInfo> getOrderShippingInfo(int orderId);
 
+    /** Order data the international waybill form is filled from: the shipping address abroad and the order lines. */
+    Optional<InternationalOrderInfo> getInternationalOrderInfo(int orderId);
+
     /** Saves a new waybill and the sender it was created from. */
     void add(ShipmentDocument document, String senderId, int userId, LocalDateTime createdAt);
 

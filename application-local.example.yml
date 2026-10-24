@@ -25,6 +25,24 @@ nova-poshta:
 #      address-ref: ...
 #      is-default: true
 
+# Nova Post International (waybills abroad). Without a key a stub is used; fake-documents: true lets it "create" test
+# waybills (numbers start with TEST). sandbox: true sends real calls to api-stage.novapost.com instead of the live API.
+nova-post-international:
+  fake-documents: true
+#  api-key: your-key
+#  sandbox: true
+#  sender:
+#    company-tin: "00000000"
+#    company-name: ТОВ Приклад
+#    name: Іван Іваненко
+#    phone: 380XXXXXXXXX
+#    email: shop@example.com
+#    city: Київ
+#    street: вул. Прикладна
+#    building: "1"
+#    flat: ""
+#    post-code: "01001"
+
 # Checkbox cash register. Without cashier keys a stub is used; fake-receipts: true lets it "fiscalize" test receipts.
 checkbox:
   fake-receipts: true

@@ -10,9 +10,10 @@ import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 
 import ua.newerp.application.delivery.NovaPoshtaClient;
+import ua.newerp.application.delivery.NovaPostInternationalClient;
 
 @Configuration
-@EnableConfigurationProperties(NovaPoshtaProperties.class)
+@EnableConfigurationProperties({NovaPoshtaProperties.class, NovaPostInternationalProperties.class})
 class DeliveryConfig {
 
     /**
@@ -28,5 +29,16 @@ class DeliveryConfig {
         var factory = new JdkClientHttpRequestFactory(HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(30)).build());
         factory.setReadTimeout(Duration.ofSeconds(30));
         return new HttpNovaPoshtaClient(RestClient.builder().requestFactory(factory).build(), properties);
+    }
+
+    /** Nova Post International (waybills abroad): the real client only with a key, as above. */
+    @Bean
+    NovaPostInternationalClient novaPostInternationalClient(NovaPostInternationalProperties properties) {
+        if (!properties.configured()) {
+            return new StubNovaPostInternationalClient(properties.fakeDocuments());
+        }
+        var factory = new JdkClientHttpRequestFactory(HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(30)).build());
+        factory.setReadTimeout(Duration.ofSeconds(30));
+        return new HttpNovaPostInternationalClient(RestClient.builder().requestFactory(factory).build(), properties);
     }
 }

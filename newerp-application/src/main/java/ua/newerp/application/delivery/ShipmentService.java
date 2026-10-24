@@ -35,9 +35,12 @@ public class ShipmentService {
     private final ShipmentRepository repository;
     private final WarehouseDirectory directory;
     private final NovaPoshtaClient client;
+    private final NovaPostInternationalClient international;
     private final Clock clock;
 
-    public ShipmentService(ShipmentRepository repository, WarehouseDirectory directory, NovaPoshtaClient client, Clock clock) {
+    public ShipmentService(ShipmentRepository repository, WarehouseDirectory directory, NovaPoshtaClient client,
+            NovaPostInternationalClient international, Clock clock) {
+        this.international = international;
         this.repository = repository;
         this.directory = directory;
         this.client = client;
@@ -91,7 +94,11 @@ public class ShipmentService {
             throw new DomainException("Посилку вже отримано чи повернено, таку ТТН видалити не можна.");
         }
 
-        client.delete(senderOf(stored), stored.document().getRef());
+        if (ShipmentDocument.INTERNATIONAL.equals(stored.document().getCarrier())) {
+            international.delete(stored.document().getRef());
+        } else {
+            client.delete(senderOf(stored), stored.document().getRef());
+        }
         repository.delete(stored.document().getId());
     }
 
