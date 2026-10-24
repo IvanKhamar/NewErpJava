@@ -35,6 +35,7 @@ import ua.newerp.web.partners.PartnerListView;
 import ua.newerp.web.marketing.BirthdaysView;
 import ua.newerp.web.marketing.ContactExportView;
 import ua.newerp.web.marketing.CouponsView;
+import ua.newerp.web.competitors.CompetitorPricesView;
 import ua.newerp.web.orders.OrderListView;
 import ua.newerp.web.reports.ReportsView;
 import ua.newerp.web.returns.ReturnListView;
@@ -112,6 +113,7 @@ public class MainLayout extends AppLayout implements BeforeEnterObserver {
             nav.addItem(new SideNavItem("Звіти", ReportsView.class, VaadinIcon.CHART.create()));
             nav.addItem(new SideNavItem("Порядок товарів", ProductSortView.class, VaadinIcon.SORT.create()));
             nav.addItem(new SideNavItem("Панель допродажу", CrossSellView.class, VaadinIcon.PACKAGE.create()));
+            nav.addItem(new SideNavItem("Ціни конкурентів", CompetitorPricesView.class, VaadinIcon.SCALE.create()));
             nav.addItem(new SideNavItem("Передзамовлення", PreOrdersView.class, VaadinIcon.CLOCK.create()));
             nav.addItem(new SideNavItem("Склади й пункти видачі", LocationsView.class, VaadinIcon.SHOP.create()));
             nav.addItem(new SideNavItem("Партнери", PartnerListView.class, VaadinIcon.CONNECT.create()));

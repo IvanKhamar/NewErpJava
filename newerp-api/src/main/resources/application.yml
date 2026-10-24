@@ -69,6 +69,9 @@ nova-poshta:
 checkbox:
   fake-receipts: false
   auto-close-interval-minutes: 15
+# Competitors' prices are read from their pages every morning ("-": only by the button).
+competitors:
+  check-cron: "0 0 7 * * *"
 
 # How often what was sold ahead is taken off the pre-order quotas (minutes); 0: only by POST /preorders/settle.
 pre-orders:
