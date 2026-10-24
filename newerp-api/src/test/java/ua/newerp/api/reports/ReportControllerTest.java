@@ -35,5 +35,6 @@ class ReportControllerTest extends IntegrationTest {
 
         assertThat(mvc.get().uri("/reports/sales?from=2026-10-05&to=2026-10-01").session(olena)).hasStatus(400);
         assertThat(mvc.get().uri("/reports/dashboard").session(login("keeper"))).hasStatus(403);
+        assertThat(mvc.get().uri("/feeds/revenue.json").header("X-Feed-Token", "")).hasStatus(404); // no token set: no feed
     }
 }

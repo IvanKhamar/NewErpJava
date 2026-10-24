@@ -48,3 +48,7 @@ checkbox:
 # Web UI: the published Blazor app (dotnet publish src/NewErp.Web -c Release -o <folder>), see README.
 #newerp:
 #  web-root: F:/PROJECTS/newerp-web/wwwroot
+
+# Revenue feed for an external dashboard: GET /feeds/revenue.json with the header X-Feed-Token (empty: the feed is off).
+#revenue-feed:
+#  token: a-long-random-string

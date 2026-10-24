@@ -48,6 +48,8 @@ class SecurityConfig {
                         .permitAll()
                         // The partner's site fetches its feed without a login, as on the old site.
                         .requestMatchers(HttpMethod.GET, "/feeds/*.xml").permitAll()
+                        // The revenue feed checks its own token (RevenueFeedController).
+                        .requestMatchers(HttpMethod.GET, "/feeds/revenue.json").permitAll()
                         .requestMatchers(HttpMethod.POST, "/cashbox/cashiers").hasRole(Roles.ADMIN)
                         .requestMatchers(HttpMethod.PUT, "/cashbox/cashiers/*").hasRole(Roles.ADMIN)
                         .requestMatchers("/cashbox/warehouses/**", "/cashbox/requisites/**").hasRole(Roles.ADMIN)
