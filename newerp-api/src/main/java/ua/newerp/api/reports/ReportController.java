@@ -11,6 +11,7 @@ import ua.newerp.application.reports.ProductSalesDto;
 import ua.newerp.application.reports.ReportFilter;
 import ua.newerp.application.reports.ReportService;
 import ua.newerp.application.reports.SalesReportDto;
+import ua.newerp.application.reports.StatusReportDto;
 
 /** Sales reports and the home page summary (Admin and Manager, see SecurityConfig). */
 @RestController
@@ -41,5 +42,11 @@ class ReportController {
     @Operation(summary = "Продані товари за кількістю (до 200); типово — поточний місяць без скасованих замовлень")
     ProductSalesDto products(ReportFilter filter) {
         return service.products(filter);
+    }
+
+    @GetMapping("/statuses")
+    @Operation(summary = "Замовлення (кількість і сума) та повернення за статусами, скасовані теж; типово — поточний місяць")
+    StatusReportDto statuses(ReportFilter filter) {
+        return service.statuses(filter);
     }
 }

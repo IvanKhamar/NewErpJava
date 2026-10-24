@@ -19,7 +19,7 @@ import ua.newerp.domain.reports.SalesPeriod;
 import ua.newerp.domain.reports.SalesReport;
 
 /**
- * The home page summary and the sales and product reports, as the old site's home page and "Звіти".
+ * The home page summary and the sales, product and status reports, as the old site's home page, "Звіти" and "Статистика".
  * Cancelled orders ("Відмінено") do not count unless the status is chosen explicitly; the old site counted them.
  */
 @Service
@@ -50,6 +50,18 @@ public class ReportService {
         DateRange range = range(filter);
         return new ProductSalesDto(range.from(), range.to(), store.products(start(range.from()), start(range.to().plusDays(1)), filter.statusId(),
                 CustomerRisk.CANCELLED_STATUS_ID, MAX_PRODUCTS));
+    }
+
+    /** Orders and returns by status; statusId and group of the filter do not apply here. */
+    public StatusReportDto statuses(ReportFilter filter) {
+        DateRange range = range(filter);
+        LocalDateTime from = start(range.from());
+        LocalDateTime to = start(range.to().plusDays(1));
+        List<StatusReportDto.OrderRow> orders = store.ordersByStatus(from, to);
+        List<StatusReportDto.ReturnRow> returns = store.returnsByStatus(from, to);
+        return new StatusReportDto(range.from(), range.to(), orders, orders.stream().mapToInt(StatusReportDto.OrderRow::orders).sum(),
+                sum(orders.stream().map(StatusReportDto.OrderRow::total).toList()), returns,
+                returns.stream().mapToInt(StatusReportDto.ReturnRow::returns).sum());
     }
 
     private record Totals(int orders, BigDecimal total) {

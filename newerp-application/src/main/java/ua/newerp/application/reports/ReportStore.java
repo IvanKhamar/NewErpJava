@@ -14,4 +14,10 @@ public interface ReportStore {
     List<ProductSalesRow> products(LocalDateTime from, LocalDateTime toExclusive, Integer statusId, int excludedStatusId, int limit);
 
     int newCustomers(LocalDateTime from, LocalDateTime toExclusive);
+
+    /** Placed orders dated in [from; toExclusive) by status, cancelled included. */
+    List<StatusReportDto.OrderRow> ordersByStatus(LocalDateTime from, LocalDateTime toExclusive);
+
+    /** Returns added in [from; toExclusive) by status. */
+    List<StatusReportDto.ReturnRow> returnsByStatus(LocalDateTime from, LocalDateTime toExclusive);
 }
