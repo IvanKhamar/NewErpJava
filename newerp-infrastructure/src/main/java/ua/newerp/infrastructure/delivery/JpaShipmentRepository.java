@@ -14,6 +14,7 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 import jakarta.persistence.EntityManager;
+import ua.newerp.application.delivery.InternationalOrderInfo;
 import ua.newerp.application.delivery.OpenShipment;
 import ua.newerp.application.delivery.OrderShippingInfo;
 import ua.newerp.application.delivery.ReminderDto;
@@ -42,9 +43,12 @@ class JpaShipmentRepository implements ShipmentRepository {
     @Override
     public List<OpenShipment> listOpenForTracking() {
         List<ShipmentDocument> documents = em.createQuery("""
-                SELECT d FROM ShipmentDocument d WHERE d.number <> '' AND d.statusCode NOT IN :finalCodes
+                SELECT d FROM ShipmentDocument d
+                WHERE d.number <> '' AND d.statusCode NOT IN :finalCodes AND d.carrier <> :international
                 """, ShipmentDocument.class)
                 .setParameter("finalCodes", ShipmentDocument.FINAL_STATUS_CODES)
+                // Waybills abroad are not known to the domestic API: asking about them would only bring errors.
+                .setParameter("international", ShipmentDocument.INTERNATIONAL)
                 .getResultList();
         if (documents.isEmpty()) {
             return List.of();
@@ -115,6 +119,30 @@ class JpaShipmentRepository implements ShipmentRepository {
                         .query(String.class)
                         .optional()
                         .orElse(null)));
+    }
+
+    @Override
+    public Optional<InternationalOrderInfo> getInternationalOrderInfo(int orderId) {
+        List<InternationalOrderInfo.Line> lines = jdbc.sql("""
+                SELECT name, quantity, total FROM dd_order_product WHERE order_id = :id ORDER BY order_product_id
+                """)
+                .param("id", orderId)
+                .query((rs, n) -> new InternationalOrderInfo.Line(rs.getString("name"), rs.getInt("quantity"), rs.getBigDecimal("total")))
+                .list();
+        // As for the domestic form: the shipping address, or the buyer if it is empty.
+        return jdbc.sql("""
+                SELECT IF(shipping_firstname <> '', shipping_firstname, firstname) AS first_name,
+                       IF(shipping_lastname <> '', shipping_lastname, lastname) AS last_name,
+                       telephone, email, shipping_country, shipping_zone, shipping_city, shipping_postcode,
+                       TRIM(CONCAT(shipping_address_1, ' ', shipping_address_2)) AS address, total, currency_code
+                FROM dd_order WHERE order_id = :id
+                """)
+                .param("id", orderId)
+                .query((rs, n) -> new InternationalOrderInfo(rs.getString("first_name"), rs.getString("last_name"), rs.getString("telephone"),
+                        rs.getString("email"), rs.getString("shipping_country"), rs.getString("shipping_zone"), rs.getString("shipping_city"),
+                        rs.getString("shipping_postcode"), rs.getString("address"), rs.getBigDecimal("total"), rs.getString("currency_code"),
+                        lines))
+                .optional();
     }
 
     @Override

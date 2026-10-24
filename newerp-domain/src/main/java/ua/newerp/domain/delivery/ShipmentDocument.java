@@ -17,6 +17,8 @@ public class ShipmentDocument {
     public static final Set<Integer> WAITING_AT_BRANCH_CODES = Set.of(7, 8);
 
     public static final String NOVA_POSHTA = "novaposhta";
+    /** Nova Post International (abroad), the same value the .NET version writes. Not tracked by the domestic API. */
+    public static final String INTERNATIONAL = "international";
 
     private Integer id;
     private int orderId;
