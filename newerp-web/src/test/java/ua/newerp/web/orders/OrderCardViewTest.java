@@ -37,6 +37,7 @@ import ua.newerp.application.delivery.SenderOption;
 import ua.newerp.application.delivery.ShipmentDto;
 import ua.newerp.application.delivery.ShipmentFormDto;
 import ua.newerp.application.delivery.ShipmentRepository;
+import ua.newerp.application.delivery.InternationalShipmentService;
 import ua.newerp.application.delivery.ShipmentService;
 import ua.newerp.application.delivery.WarehouseDto;
 import ua.newerp.application.orders.AssignManagerRequest;
@@ -89,6 +90,7 @@ class OrderCardViewTest extends BrowserlessTest {
     final SmsSender sender = mock(SmsSender.class);
     final ShipmentRepository shipments = mock(ShipmentRepository.class);
     final ShipmentService shipmentService = mock(ShipmentService.class);
+    final InternationalShipmentService international = mock(InternationalShipmentService.class);
     final CashboxService cashbox = mock(CashboxService.class);
     final BankPaymentService bank = mock(BankPaymentService.class);
     final LiqPayService liqPay = mock(LiqPayService.class);
@@ -105,7 +107,7 @@ class OrderCardViewTest extends BrowserlessTest {
         when(session.user()).thenReturn(Optional.of(new CurrentUser(7, "olena", "Олена Коваль", "Manager", false)));
         when(session.hasAnyRole(any(String[].class))).thenReturn(true);
         when(smsLog.listForOrder(1001)).thenReturn(List.of());
-        view = new OrderCardView(queries, orders, sms, smsLog, sender, shipments, shipmentService, cashbox, bank, liqPay, composition, returns, session);
+        view = new OrderCardView(queries, orders, sms, smsLog, sender, shipments, shipmentService, international, cashbox, bank, liqPay, composition, returns, session);
         UI.getCurrent().add(view);
         view.open(1001);
     }

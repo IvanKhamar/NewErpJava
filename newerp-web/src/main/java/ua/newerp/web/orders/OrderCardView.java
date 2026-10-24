@@ -40,6 +40,7 @@ import ua.newerp.application.cashbox.CashboxService;
 import ua.newerp.application.cashbox.ChequeDto;
 import ua.newerp.application.cashbox.IssueChequeRequest;
 import ua.newerp.application.common.LookupItem;
+import ua.newerp.application.delivery.InternationalShipmentService;
 import ua.newerp.application.delivery.ShipmentDto;
 import ua.newerp.application.delivery.ShipmentRepository;
 import ua.newerp.application.delivery.ShipmentService;
@@ -61,6 +62,7 @@ import ua.newerp.application.sms.SmsDto;
 import ua.newerp.application.sms.SmsLog;
 import ua.newerp.application.sms.SmsSender;
 import ua.newerp.application.sms.SmsService;
+import ua.newerp.domain.delivery.ShipmentDocument;
 import ua.newerp.web.Access;
 import ua.newerp.web.Fmt;
 import ua.newerp.web.auth.CurrentSession;
@@ -94,6 +96,7 @@ public class OrderCardView extends VerticalLayout implements BeforeEnterObserver
     final Button createReturn = new Button("Повернення", VaadinIcon.ARROW_BACKWARD.create());
     final Button editComposition = new Button("Змінити склад", VaadinIcon.EDIT.create());
     final Button createShipment = new Button("Створити ТТН", VaadinIcon.TRUCK.create());
+    final Button createInternational = new Button("Міжнародна накладна", VaadinIcon.GLOBE.create());
 
     private final OrderQueries queries;
     private final OrderService orders;
@@ -102,6 +105,7 @@ public class OrderCardView extends VerticalLayout implements BeforeEnterObserver
     private final SmsSender smsSender;
     private final ShipmentRepository shipments;
     private final ShipmentService shipmentService;
+    private final InternationalShipmentService international;
     private final CashboxService cashbox;
     private final BankPaymentService bank;
     private final LiqPayService liqPay;
@@ -114,8 +118,10 @@ public class OrderCardView extends VerticalLayout implements BeforeEnterObserver
     private OrderDetails order;
 
     public OrderCardView(OrderQueries queries, OrderService orders, SmsService sms, SmsLog smsLog, SmsSender smsSender,
-            ShipmentRepository shipments, ShipmentService shipmentService, CashboxService cashbox, BankPaymentService bank,
-            LiqPayService liqPay, NewOrderService composition, ReturnService returns, CurrentSession session) {
+            ShipmentRepository shipments, ShipmentService shipmentService, InternationalShipmentService international,
+            CashboxService cashbox, BankPaymentService bank, LiqPayService liqPay, NewOrderService composition, ReturnService returns,
+            CurrentSession session) {
+        this.international = international;
         this.queries = queries;
         this.orders = orders;
         this.sms = sms;
@@ -160,6 +166,7 @@ public class OrderCardView extends VerticalLayout implements BeforeEnterObserver
         editComposition.addClickListener(e -> editComposition());
         createShipment.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         createShipment.addClickListener(e -> createShipment());
+        createInternational.addClickListener(e -> createInternational());
     }
 
     @Override
@@ -276,6 +283,14 @@ public class OrderCardView extends VerticalLayout implements BeforeEnterObserver
         }).open());
     }
 
+    void createInternational() {
+        int userId = session.user().orElseThrow().userId();
+        Actions.run(null, () -> new CreateInternationalShipmentDialog(international, id, userId, shipment -> {
+            Messages.success("Міжнародну накладну " + shipment.number() + " створено.");
+            reload();
+        }).open());
+    }
+
     private Component history() {
         if (order.statusHistory().isEmpty()) {
             return new Panel("Історія статусів", new Paragraph("Статус ще не змінювали."));
@@ -343,7 +358,8 @@ public class OrderCardView extends VerticalLayout implements BeforeEnterObserver
         if (shipment == null) {
             var none = new Paragraph("ТТН ще не створено.");
             none.addClassName("secondary");
-            return new Panel("Доставка", none, createShipment);
+            var buttons = new HorizontalLayout(createShipment, createInternational);
+            return new Panel("Доставка", none, buttons);
         }
         var number = new Span(shipment.number());
         number.addClassNames("mono", LumoUtility.FontSize.LARGE);
@@ -381,7 +397,12 @@ public class OrderCardView extends VerticalLayout implements BeforeEnterObserver
                 })));
         delete.addThemeVariants(ButtonVariant.LUMO_ERROR);
         delete.setEnabled(!shipment.isFinal());
-        var actions = new HorizontalLayout(print, markings, delete);
+        // A waybill abroad has no Nova Poshta PDFs: it is printed in the Nova Post account.
+        boolean abroad = ShipmentDocument.INTERNATIONAL.equals(shipment.carrier());
+        if (abroad) {
+            info.row("Перевізник", "Nova Post International");
+        }
+        var actions = abroad ? new HorizontalLayout(delete) : new HorizontalLayout(print, markings, delete);
         actions.setDefaultVerticalComponentAlignment(FlexComponent.Alignment.CENTER);
         return new Panel("Доставка", top, info, actions);
     }
