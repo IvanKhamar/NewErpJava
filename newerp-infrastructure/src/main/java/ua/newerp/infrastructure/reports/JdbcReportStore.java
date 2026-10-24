@@ -10,16 +10,20 @@ import org.springframework.stereotype.Repository;
 
 import ua.newerp.application.reports.ProductSalesRow;
 import ua.newerp.application.reports.ReportStore;
+import ua.newerp.application.reports.StatusReportDto;
 import ua.newerp.domain.reports.SaleFact;
+import ua.newerp.infrastructure.ErpProperties;
 
-/** Reports straight from OpenCart's dd_order and dd_order_product. */
+/** Reports straight from OpenCart's dd_order, dd_order_product and dd_return. */
 @Repository
 class JdbcReportStore implements ReportStore {
 
     private final JdbcClient jdbc;
+    private final int languageId;
 
-    JdbcReportStore(JdbcClient jdbc) {
+    JdbcReportStore(JdbcClient jdbc, ErpProperties properties) {
         this.jdbc = jdbc;
+        this.languageId = properties.languageId();
     }
 
     @Override
@@ -64,6 +68,41 @@ class JdbcReportStore implements ReportStore {
         return jdbc.sql("SELECT COUNT(*) FROM dd_customer WHERE date_added >= :from AND date_added < :to")
                 .param("from", from).param("to", toExclusive)
                 .query(Integer.class).single();
+    }
+
+    @Override
+    public List<StatusReportDto.OrderRow> ordersByStatus(LocalDateTime from, LocalDateTime toExclusive) {
+        // Grouped first, then named: a status missing from dd_order_status still shows, as its number.
+        return jdbc.sql("""
+                SELECT g.order_status_id, COALESCE(s.name, CONCAT('#', g.order_status_id)) AS name, g.orders, g.total
+                FROM (SELECT order_status_id, COUNT(*) AS orders, SUM(total) AS total
+                      FROM dd_order
+                      WHERE date_added >= :from AND date_added < :to AND order_status_id > 0
+                      GROUP BY order_status_id) g
+                LEFT JOIN dd_order_status s ON s.order_status_id = g.order_status_id AND s.language_id = :lang
+                ORDER BY g.order_status_id
+                """)
+                .param("from", from).param("to", toExclusive).param("lang", languageId)
+                .query((rs, n) -> new StatusReportDto.OrderRow(rs.getInt("order_status_id"), rs.getString("name"), rs.getInt("orders"),
+                        rs.getBigDecimal("total")))
+                .list();
+    }
+
+    @Override
+    public List<StatusReportDto.ReturnRow> returnsByStatus(LocalDateTime from, LocalDateTime toExclusive) {
+        return jdbc.sql("""
+                SELECT g.return_status_id, COALESCE(s.name, CONCAT('#', g.return_status_id)) AS name, g.returns, g.quantity
+                FROM (SELECT return_status_id, COUNT(*) AS returns, SUM(quantity) AS quantity
+                      FROM dd_return
+                      WHERE date_added >= :from AND date_added < :to
+                      GROUP BY return_status_id) g
+                LEFT JOIN dd_return_status s ON s.return_status_id = g.return_status_id AND s.language_id = :lang
+                ORDER BY g.return_status_id
+                """)
+                .param("from", from).param("to", toExclusive).param("lang", languageId)
+                .query((rs, n) -> new StatusReportDto.ReturnRow(rs.getInt("return_status_id"), rs.getString("name"), rs.getInt("returns"),
+                        rs.getInt("quantity")))
+                .list();
     }
 
     private static String orders() {

@@ -37,4 +37,22 @@ class ReportControllerTest extends IntegrationTest {
         assertThat(mvc.get().uri("/reports/dashboard").session(login("keeper"))).hasStatus(403);
         assertThat(mvc.get().uri("/feeds/revenue.json").header("X-Feed-Token", "")).hasStatus(404); // no token set: no feed
     }
+
+    @Test
+    void statusesCountCancelledButNotUnfinishedOrdersAndReturnsOfThePeriod() {
+        MockHttpSession olena = login("olena");
+
+        MvcTestResult report = mvc.get().uri("/reports/statuses?from=2025-01-01&to=2026-10-31").session(olena).exchange();
+        assertThat(report).hasStatusOk().bodyJson().isLenientlyEqualTo("""
+                {"orders":[{"statusId":1,"name":"Нове","orders":3,"total":3600.0000},
+                           {"statusId":5,"name":"Виконано","orders":1,"total":2000.0000},
+                           {"statusId":19,"name":"#19","orders":1,"total":700.0000}],
+                 "orderCount":5,"total":6300.0000,
+                 "returns":[{"statusId":1,"name":"Очікує","returns":2,"quantity":3},
+                            {"statusId":2,"name":"Отримано","returns":1,"quantity":1}],
+                 "returnCount":3}""");
+
+        assertThat(mvc.get().uri("/reports/statuses?from=2026-10-05&to=2026-10-01").session(olena)).hasStatus(400);
+        assertThat(mvc.get().uri("/reports/statuses").session(login("keeper"))).hasStatus(403);
+    }
 }

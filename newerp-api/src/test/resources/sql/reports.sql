@@ -19,3 +19,12 @@ DROP TEMPORARY TABLE report_orders;
 INSERT INTO dd_order_product (order_id, product_id, name, model, quantity, price, total, tax, reward) VALUES
   (2001, 50, 'Сукня лляна', 'SL-01', 2, 750, 1500, 0, 0), (2002, 51, 'Пояс', 'P-02', 1, 2000, 2000, 0, 0),
   (2003, 51, 'Пояс', 'P-02', 9, 111, 999, 0, 0);
+-- Invented returns for the status report: two in October (status 1), one in September (status 2), one long before the period.
+DELETE FROM dd_return; DELETE FROM dd_return_status;
+INSERT INTO dd_return_status (return_status_id, language_id, name) VALUES (1, 3, 'Очікує'), (2, 3, 'Отримано');
+INSERT INTO dd_return (order_id, product_id, customer_id, firstname, lastname, email, telephone, product, model, quantity, opened,
+  return_reason_id, return_action_id, return_status_id, comment, date_ordered, date_added, date_modified) VALUES
+  (2001, 50, 0, 'Ірина', 'Шевчук', '', '', 'Сукня лляна', 'SL-01', 1, 0, 0, 0, 1, '', '2026-10-01', '2026-10-10 12:00:00', '2026-10-10 12:00:00'),
+  (2002, 51, 0, 'Ірина', 'Шевчук', '', '', 'Пояс', 'P-02', 2, 0, 0, 0, 1, '', '2026-10-02', '2026-10-12 12:00:00', '2026-10-12 12:00:00'),
+  (2004, 50, 0, 'Ірина', 'Шевчук', '', '', 'Сукня лляна', 'SL-01', 1, 0, 0, 0, 2, '', '2026-09-01', '2026-09-05 12:00:00', '2026-09-05 12:00:00'),
+  (2006, 50, 0, 'Ірина', 'Шевчук', '', '', 'Сукня лляна', 'SL-01', 5, 0, 0, 0, 2, '', '2024-03-01', '2024-03-05 12:00:00', '2024-03-05 12:00:00');

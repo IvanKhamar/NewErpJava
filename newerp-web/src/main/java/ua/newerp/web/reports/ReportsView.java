@@ -30,12 +30,16 @@ import ua.newerp.application.reports.ReportFilter;
 import ua.newerp.application.reports.ReportService;
 import ua.newerp.application.reports.SalesReportDto;
 import ua.newerp.application.reports.SalesReportRow;
+import ua.newerp.application.reports.StatusReportDto;
 import ua.newerp.domain.reports.ReportGrouping;
 import ua.newerp.web.Access;
 import ua.newerp.web.Fmt;
 import ua.newerp.web.ui.Actions;
 
-/** Sales by period and by product (Reports.razor). Without a status all placed orders count except the cancelled ones. */
+/**
+ * Sales by period and by product (Reports.razor), and orders and returns by status. Without a status the sales and products count
+ * all placed orders except the cancelled ones.
+ */
 @Route("reports")
 @PageTitle("Звіти — NewErp")
 @RolesAllowed({Access.ADMIN, Access.MANAGER})
@@ -50,6 +54,8 @@ public class ReportsView extends VerticalLayout {
     final Button show = new Button("Показати");
     final Grid<SalesReportRow> sales = new Grid<>();
     final Grid<ProductSalesRow> products = new Grid<>();
+    final Grid<StatusReportDto.OrderRow> orderStatuses = new Grid<>();
+    final Grid<StatusReportDto.ReturnRow> returnStatuses = new Grid<>();
     private final ReportService service;
     SalesReportDto salesReport;
 
@@ -99,10 +105,29 @@ public class ReportsView extends VerticalLayout {
         products.setEmptyStateText("За цей період продажів немає.");
         products.setAllRowsVisible(true);
 
+        orderStatuses.addColumn(StatusReportDto.OrderRow::name).setHeader("Статус замовлення").setFlexGrow(1);
+        orderStatuses.addColumn(StatusReportDto.OrderRow::orders).setHeader("Замовлень").setTextAlign(ColumnTextAlign.END).setAutoWidth(true);
+        orderStatuses.addColumn(r -> Fmt.money(r.total())).setHeader("Сума").setTextAlign(ColumnTextAlign.END).setAutoWidth(true);
+        orderStatuses.addThemeVariants(GridVariant.LUMO_COMPACT, GridVariant.LUMO_ROW_STRIPES);
+        orderStatuses.setAllRowsVisible(true);
+        orderStatuses.setPartNameGenerator(r -> r.statusId() == 0 ? "total-row" : null);
+
+        returnStatuses.addColumn(StatusReportDto.ReturnRow::name).setHeader("Статус повернення").setFlexGrow(1);
+        returnStatuses.addColumn(StatusReportDto.ReturnRow::returns).setHeader("Повернень").setTextAlign(ColumnTextAlign.END).setAutoWidth(true);
+        returnStatuses.addColumn(StatusReportDto.ReturnRow::quantity).setHeader("Товарів, шт.").setTextAlign(ColumnTextAlign.END).setAutoWidth(true);
+        returnStatuses.addThemeVariants(GridVariant.LUMO_COMPACT, GridVariant.LUMO_ROW_STRIPES);
+        returnStatuses.setEmptyStateText("За цей період повернень немає.");
+        returnStatuses.setAllRowsVisible(true);
+        var statusHint = new Paragraph("Тут кожен статус окремо, скасовані теж; фільтри «Статус» і «Групувати» не діють.");
+        statusHint.addClassName("secondary");
+        var statuses = new VerticalLayout(statusHint, orderStatuses, returnStatuses);
+        statuses.setPadding(false);
+
         var tabs = new TabSheet();
         tabs.setWidthFull();
         tabs.add("Продажі", sales);
         tabs.add("Товари", products);
+        tabs.add("Статуси", statuses);
         add(new H2("Звіти"), hint, filters, tabs);
         load();
         // The server picks the default period (this month): show it in the filter.
@@ -123,6 +148,11 @@ public class ReportsView extends VerticalLayout {
             rows.add(new SalesReportRow(null, null, salesReport.orders(), salesReport.products(), salesReport.total()));
             sales.setItems(rows);
             products.setItems(productReport.rows());
+            StatusReportDto statusReport = service.statuses(filter);
+            var orderRows = new ArrayList<>(statusReport.orders());
+            orderRows.add(new StatusReportDto.OrderRow(0, "Разом", statusReport.orderCount(), statusReport.total()));
+            orderStatuses.setItems(orderRows);
+            returnStatuses.setItems(statusReport.returns());
         });
     }
 
