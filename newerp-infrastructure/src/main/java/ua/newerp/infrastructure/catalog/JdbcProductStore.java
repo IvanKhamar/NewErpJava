@@ -1,6 +1,8 @@
 package ua.newerp.infrastructure.catalog;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -110,6 +112,43 @@ class JdbcProductStore implements ProductStore {
                 .param("lang", languageId)
                 .query((rs, n) -> new LookupItem(rs.getInt("category_id"), rs.getString("name")))
                 .list();
+    }
+
+    // dd_product is MyISAM: no transaction, no row lock. date_modified is the version: the UPDATE only hits the row the user saw,
+    // and OpenCart's own save also sets date_modified, so a change made there in between is noticed too.
+    @Override
+    @Transactional
+    public boolean update(int productId, LocalDateTime expected, BigDecimal price, Boolean enabled) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("id", productId);
+        params.put("expected", expected);
+        params.put("price", price);
+        params.put("status", enabled == null ? null : enabled ? 1 : 0);
+        return jdbc.sql("""
+                UPDATE dd_product SET price = COALESCE(:price, price), status = COALESCE(:status, status), date_modified = NOW()
+                WHERE product_id = :id AND date_modified = :expected
+                """)
+                .params(params).update() == 1;
+    }
+
+    @Override
+    @Transactional
+    public void replaceLabels(int productId, Collection<Integer> labelIds) {
+        jdbc.sql("DELETE FROM dd_product_to_label WHERE product_id = :id").param("id", productId).update();
+        for (int labelId : labelIds) {
+            jdbc.sql("INSERT INTO dd_product_to_label (product_id, label_id) VALUES (:id, :labelId)")
+                    .param("id", productId).param("labelId", labelId).update();
+        }
+    }
+
+    @Override
+    @Transactional
+    public void replaceCategories(int productId, Collection<Integer> categoryIds) {
+        jdbc.sql("DELETE FROM dd_product_to_category WHERE product_id = :id").param("id", productId).update();
+        for (int categoryId : categoryIds) {
+            jdbc.sql("INSERT INTO dd_product_to_category (product_id, category_id) VALUES (:id, :categoryId)")
+                    .param("id", productId).param("categoryId", categoryId).update();
+        }
     }
 
     /** The card's sizes, labels and categories, read after the product row. */

@@ -5,8 +5,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpSession;
 import org.springframework.test.context.jdbc.Sql;
+import org.springframework.test.web.servlet.assertj.MvcTestResult;
 
 import ua.newerp.IntegrationTest;
 
@@ -50,7 +52,52 @@ class ProductControllerTest extends IntegrationTest {
     }
 
     @Test
+    void patchChangesPriceStatusLabelsAndCategoriesOnlyForTheVersionSeen() {
+        MockHttpSession olena = login("olena");
+
+        MvcTestResult changed = patch(olena, 70, """
+                {"price":1399.50,"enabled":false,"labelIds":[2],"categoryIds":[30,31],"dateModified":"2026-10-01T10:00:00"}""");
+        assertThat(changed).hasStatusOk().bodyJson().isLenientlyEqualTo("""
+                {"id":70,"price":1399.5000,"enabled":false,"labels":[{"id":2}],"categories":[{"id":31},{"id":30}]}""");
+        assertThat(changed).bodyJson().extractingPath("$.dateModified").isNotEqualTo("2026-10-01T10:00:00");
+        // The sizes and their stock are not touched.
+        assertThat(changed).bodyJson().extractingPath("$.sizes.length()").isEqualTo(2);
+
+        // The same old version again: somebody (here: we) changed the product since.
+        assertThat(patch(olena, 70, "{\"price\":1000,\"dateModified\":\"2026-10-01T10:00:00\"}")).hasStatus(409);
+        assertThat(mvc.get().uri("/catalog/products/70").session(olena)).bodyJson().extractingPath("$.price").isEqualTo(1399.5);
+
+        // Null parts stay: only the labels of 72 change.
+        assertThat(patch(olena, 72, "{\"labelIds\":[1],\"dateModified\":\"2026-01-01T00:00:00\"}")).hasStatusOk().bodyJson()
+                .isLenientlyEqualTo("{\"price\":900.0000,\"enabled\":true,\"labels\":[{\"id\":1}],\"categories\":[{\"id\":30}]}");
+    }
+
+    @Test
+    void patchRefusesBadValuesAndUnknownProducts() {
+        MockHttpSession olena = login("olena");
+        String version = ",\"dateModified\":\"2026-01-01T00:00:00\"}";
+
+        assertThat(patch(olena, 71, "{\"price\":-1" + version)).hasStatus(400);
+        assertThat(patch(olena, 71, "{\"price\":10.005" + version)).hasStatus(400);
+        assertThat(patch(olena, 71, "{\"labelIds\":[9]" + version)).hasStatus(400);
+        assertThat(patch(olena, 71, "{\"categoryIds\":[]" + version)).hasStatus(400);
+        // Category 32 is switched off: it cannot be newly chosen.
+        assertThat(patch(olena, 71, "{\"categoryIds\":[32]" + version)).hasStatus(400);
+        assertThat(patch(olena, 71, "{\"price\":100}")).hasStatus(400);
+        assertThat(patch(olena, 999, "{\"price\":100" + version)).hasStatus(404);
+        // Nothing of the refused changes reached the product.
+        assertThat(mvc.get().uri("/catalog/products/71").session(olena)).bodyJson()
+                .isLenientlyEqualTo("{\"price\":500.0000,\"dateModified\":\"2026-01-01T00:00:00\",\"categories\":[{\"id\":31}]}");
+    }
+
+    @Test
     void storekeeperHasNoAccess() {
-        assertThat(mvc.get().uri("/catalog/products").session(login("keeper"))).hasStatus(403);
+        MockHttpSession keeper = login("keeper");
+        assertThat(mvc.get().uri("/catalog/products").session(keeper)).hasStatus(403);
+        assertThat(patch(keeper, 70, "{\"price\":1,\"dateModified\":\"2026-10-01T10:00:00\"}")).hasStatus(403);
+    }
+
+    private MvcTestResult patch(MockHttpSession session, int id, String json) {
+        return mvc.patch().uri("/catalog/products/" + id).session(session).contentType(MediaType.APPLICATION_JSON).content(json).exchange();
     }
 }
