@@ -25,7 +25,7 @@ class ProductControllerTest extends IntegrationTest {
         assertThat(mvc.get().uri("/catalog/products?labelId=1").session(olena)).bodyJson().extractingPath("$.items[*].id").isEqualTo(List.of(70));
         assertThat(mvc.get().uri("/catalog/products?enabled=false").session(olena)).bodyJson().extractingPath("$.items[*].id").isEqualTo(List.of(71));
         // % is a plain character in the search, not a LIKE wildcard; a number finds the product itself.
-        assertThat(mvc.get().uri("/catalog/products?search=50%25").session(olena)).bodyJson().extractingPath("$.items[*].id").isEqualTo(List.of(72));
+        assertThat(mvc.get().uri("/catalog/products?search=50%").session(olena)).bodyJson().extractingPath("$.items[*].id").isEqualTo(List.of(72));
         assertThat(mvc.get().uri("/catalog/products?search=71").session(olena)).bodyJson().extractingPath("$.items[*].id").isEqualTo(List.of(71));
         assertThat(mvc.get().uri("/catalog/products?page=2&pageSize=2").session(olena)).bodyJson()
                 .isLenientlyEqualTo("{\"page\":2,\"totalPages\":2,\"items\":[{\"id\":72}]}");
