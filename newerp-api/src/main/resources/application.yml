@@ -86,6 +86,12 @@ product-sort:
   default-days: 90
 
 # Birthday greetings: the coupon's discount and term, the pickup city, a pause between bulk SMS
+# Revenue feed for an external dashboard (GET /feeds/revenue.json). The token only in NEWERP_REVENUE_FEED_TOKEN or
+# application-local.yml; empty: the feed is off.
+revenue-feed:
+  token: ${NEWERP_REVENUE_FEED_TOKEN:}
+  max-days: 366
+
 marketing:
   birthday-discount-percent: 20
   birthday-coupon-days: 30

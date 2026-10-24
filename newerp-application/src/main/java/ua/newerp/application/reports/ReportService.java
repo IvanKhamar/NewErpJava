@@ -83,6 +83,33 @@ public class ReportService {
                 top);
     }
 
+    /** The revenue feed: today, yesterday, the month and the year so far, and the last {@code days} days one by one. */
+    public RevenueFeedDto revenueFeed(int days, int maxDays) {
+        if (days < 1 || days > maxDays) {
+            throw new DomainException("Кількість днів — від 1 до " + maxDays + ".");
+        }
+        LocalDate today = today();
+        LocalDate monthStart = today.withDayOfMonth(1);
+        LocalDate prevMonthStart = monthStart.minusMonths(1);
+        LocalDate prevMonthEnd = min(prevMonthStart.plusDays(today.getDayOfMonth() - 1L), monthStart.minusDays(1));
+        LocalDate yearStart = today.withDayOfYear(1);
+        LocalDate seriesFrom = today.minusDays(days - 1L);
+
+        LocalDate from = min(min(prevMonthStart, yearStart), seriesFrom);
+        List<SaleFact> facts = store.sales(start(from), start(today.plusDays(1)), null, CustomerRisk.CANCELLED_STATUS_ID);
+        List<RevenueFeedDto.Day> series = SalesReport.group(facts, ReportGrouping.DAY, seriesFrom, today, true).stream()
+                .map(p -> new RevenueFeedDto.Day(p.start(), p.orders(), p.products(), p.total()))
+                .toList();
+        return new RevenueFeedDto(LocalDateTime.now(clock), "UAH", feedTotals(facts, today, today),
+                feedTotals(facts, today.minusDays(1), today.minusDays(1)), feedTotals(facts, monthStart, today),
+                feedTotals(facts, prevMonthStart, prevMonthEnd), feedTotals(facts, yearStart, today), series);
+    }
+
+    private static RevenueFeedDto.Totals feedTotals(List<SaleFact> facts, LocalDate from, LocalDate to) {
+        Totals t = totals(facts, from, to);
+        return new RevenueFeedDto.Totals(from, to, t.orders(), t.total(), average(t));
+    }
+
     private record DateRange(LocalDate from, LocalDate to) {
     }
 
