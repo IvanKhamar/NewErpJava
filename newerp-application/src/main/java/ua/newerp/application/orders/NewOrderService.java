@@ -1,5 +1,6 @@
 package ua.newerp.application.orders;
 
+import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -112,12 +113,22 @@ public class NewOrderService {
         OrderCompositionDto current = getComposition(orderId);
         List<OrderDraftLine> lines = draftLines(request.lines());
         OrderDraft draft = OrderDraft.forLines(lines, request.shippingCost(), request.discount(), request.prepayment());
+        // A gift voucher spent in the order stays: the new sum must still cover it and the prepayment.
+        BigDecimal voucher = store.voucherPaid(orderId);
+        BigDecimal total = draft.total().subtract(voucher);
+        if (total.signum() < 0) {
+            throw new DomainException("Сума замовлення стала меншою за оплату сертифікатом (" + voucher.stripTrailingZeros().toPlainString()
+                    + " грн). Спершу зніміть сертифікат.");
+        }
+        if (draft.prepayment().compareTo(total) > 0) {
+            throw new DomainException("Сума завдатку не може перевищувати суму замовлення.");
+        }
         requireActiveUser(userId);
 
         List<NewOrderLineRecord> records = records(lines);
         List<String> warnings = orderService.reapplyStatus(orderId, current.statusId(),
                 () -> store.replaceLines(orderId, draft, records, now()), userId);
-        return new UpdateOrderCompositionResult(draft.total(), warnings);
+        return new UpdateOrderCompositionResult(total, warnings);
     }
 
     private List<NewOrderLineRecord> records(List<OrderDraftLine> lines) {

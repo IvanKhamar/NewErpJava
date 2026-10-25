@@ -31,6 +31,27 @@ public interface VoucherStore {
 
     List<LookupItem> themes();
 
+    /** The order's total and prepayment, if there is such a placed order. */
+    Optional<OrderSums> orderSums(int orderId);
+
+    /** The voucher spent in this order and how much (positive), from dd_voucher_history. */
+    Optional<SpentInOrder> spentInOrder(int orderId);
+
+    /**
+     * Spends amount of the voucher in the order as OpenCart does it: a history row with a minus, the "voucher" total line with a
+     * minus, and the order's total smaller by the amount.
+     */
+    void redeem(int orderId, int voucherId, String code, BigDecimal amount, LocalDateTime now);
+
+    /** Takes the spending back: the history row and the total line go, the order's total grows back. */
+    void release(int orderId, int voucherId, BigDecimal amount);
+
+    record OrderSums(BigDecimal total, BigDecimal prepayment) {
+    }
+
+    record SpentInOrder(int voucherId, BigDecimal amount) {
+    }
+
     /**
      * @param spent         the sum of its history rows (negative: spent)
      * @param orderStatusId the status of the order it was bought in; null when orderId is 0

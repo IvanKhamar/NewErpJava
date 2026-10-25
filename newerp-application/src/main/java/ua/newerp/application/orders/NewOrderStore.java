@@ -1,5 +1,6 @@
 package ua.newerp.application.orders;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
@@ -32,6 +33,12 @@ public interface NewOrderStore {
 
     Optional<OrderCompositionDto> getComposition(int orderId);
 
-    /** Replaces the order's products, options and totals, and updates the total and the prepayment. */
+    /**
+     * Replaces the order's products, options and totals, and updates the total and the prepayment. A gift voucher spent in the
+     * order (its "voucher" total line) stays and is taken off the total.
+     */
     void replaceLines(int orderId, OrderDraft draft, List<NewOrderLineRecord> lines, LocalDateTime now);
+
+    /** What gift vouchers paid of the order (positive), from its "voucher" total lines. */
+    BigDecimal voucherPaid(int orderId);
 }

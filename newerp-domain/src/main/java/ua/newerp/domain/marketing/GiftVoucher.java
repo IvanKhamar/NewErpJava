@@ -64,6 +64,26 @@ public record GiftVoucher(String code, String fromName, String fromEmail, String
         return active && (orderId == 0 || orderPaid);
     }
 
+    /**
+     * Checks a spending in an order.
+     *
+     * @param left what the order still needs: its total minus the prepayment
+     */
+    public static void requireRedeemable(BigDecimal amount, BigDecimal balance, BigDecimal left, boolean usable) {
+        if (!usable) {
+            throw new DomainException("Сертифікат зараз не можна використати: він вимкнений або куплений у ще не оплаченому замовленні.");
+        }
+        if (amount == null || amount.signum() <= 0 || amount.stripTrailingZeros().scale() > 2) {
+            throw new DomainException("Сума списання — більше 0, не більше двох знаків після коми.");
+        }
+        if (amount.compareTo(balance) > 0) {
+            throw new DomainException("На сертифікаті лише " + balance.stripTrailingZeros().toPlainString() + " грн.");
+        }
+        if (amount.compareTo(left) > 0) {
+            throw new DomainException("Це більше, ніж лишилось сплатити за замовлення (" + left.stripTrailingZeros().toPlainString() + " грн).");
+        }
+    }
+
     private static String text(String value) {
         return value == null ? "" : value.strip();
     }

@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.random.RandomGenerator;
 
 import org.springframework.stereotype.Service;
@@ -92,6 +93,43 @@ public class VoucherService {
         SmsSendResult result = sender.send(number, text);
         smsLog.add(new SmsMessage(voucher.orderId(), number, text, result.response(), LocalDateTime.now(clock)));
         return result;
+    }
+
+    /** The voucher spent in the order, if any. */
+    @Transactional(readOnly = true)
+    public Optional<OrderVoucherDto> forOrder(int orderId) {
+        return store.spentInOrder(orderId).map(spent -> {
+            VoucherCardDto voucher = get(spent.voucherId());
+            BigDecimal total = store.orderSums(orderId).map(VoucherStore.OrderSums::total).orElse(BigDecimal.ZERO);
+            return new OrderVoucherDto(orderId, voucher.id(), voucher.code(), spent.amount(), total, voucher.balance());
+        });
+    }
+
+    /**
+     * Pays part of a manual order with a voucher. amount null: as much as the voucher and the order allow. One voucher per order;
+     * to change it, release it first.
+     */
+    public OrderVoucherDto redeem(int orderId, String code, BigDecimal amount) {
+        VoucherStore.OrderSums order = store.orderSums(orderId)
+                .orElseThrow(() -> new NotFoundException("Замовлення " + orderId + " не знайдено."));
+        if (store.spentInOrder(orderId).isPresent()) {
+            throw new DomainException("За замовленням уже списано сертифікат. Щоб змінити суму, спершу зніміть його.");
+        }
+        String clean = code == null ? "" : code.strip().toUpperCase();
+        VoucherStore.VoucherRow row = store.findByCode(clean)
+                .orElseThrow(() -> new NotFoundException("Сертифіката з кодом " + clean + " немає."));
+        VoucherCardDto voucher = card(row, List.of());
+        BigDecimal left = order.total().subtract(order.prepayment()).max(BigDecimal.ZERO);
+        BigDecimal spend = amount != null ? amount : voucher.balance().min(left);
+        GiftVoucher.requireRedeemable(spend, voucher.balance(), left, voucher.usable());
+        store.redeem(orderId, voucher.id(), voucher.code(), spend, LocalDateTime.now(clock));
+        return forOrder(orderId).orElseThrow();
+    }
+
+    public void release(int orderId) {
+        VoucherStore.SpentInOrder spent = store.spentInOrder(orderId)
+                .orElseThrow(() -> new NotFoundException("За замовленням " + orderId + " сертифікат не списано."));
+        store.release(orderId, spent.voucherId(), spent.amount());
     }
 
     private GiftVoucher validate(SaveVoucherRequest r, String code, Integer exceptId) {
