@@ -333,11 +333,24 @@ class JdbcNewOrderStore implements NewOrderStore {
         // Like the old site's editOrder: the lines, options and totals are deleted and written again (MyISAM, no transaction)
         jdbc.sql("DELETE FROM dd_order_option WHERE order_id = :id").param("id", orderId).update();
         jdbc.sql("DELETE FROM dd_order_product WHERE order_id = :id").param("id", orderId).update();
-        jdbc.sql("DELETE FROM dd_order_total WHERE order_id = :id").param("id", orderId).update();
+        // A gift voucher spent in the order keeps its line (and its dd_voucher_history row): the new total is smaller by it.
+        BigDecimal voucher = voucherPaid(orderId);
+        jdbc.sql("DELETE FROM dd_order_total WHERE order_id = :id AND code <> 'voucher'").param("id", orderId).update();
         addLines(orderId, shippingMethod, draft, lines);
+        BigDecimal total = draft.total().subtract(voucher);
+        if (voucher.signum() > 0) {
+            jdbc.sql("UPDATE dd_order_total SET value = :total, sort_order = 99 WHERE order_id = :id AND code = 'total'")
+                    .param("total", total).param("id", orderId).update();
+        }
         jdbc.sql("UPDATE dd_order SET total = :total, prepayment = :prepayment, date_modified = :now WHERE order_id = :id")
-                .param("total", draft.total()).param("prepayment", draft.prepayment()).param("now", now).param("id", orderId)
+                .param("total", total).param("prepayment", draft.prepayment()).param("now", now).param("id", orderId)
                 .update();
+    }
+
+    @Override
+    public BigDecimal voucherPaid(int orderId) {
+        return jdbc.sql("SELECT COALESCE(-SUM(value), 0) FROM dd_order_total WHERE order_id = :id AND code = 'voucher'")
+                .param("id", orderId).query(BigDecimal.class).single();
     }
 
     private void addLines(int orderId, String shippingMethod, OrderDraft draft, List<NewOrderLineRecord> lines) {

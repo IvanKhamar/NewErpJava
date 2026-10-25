@@ -44,6 +44,7 @@ import ua.newerp.application.delivery.InternationalShipmentService;
 import ua.newerp.application.delivery.ShipmentDto;
 import ua.newerp.application.delivery.ShipmentRepository;
 import ua.newerp.application.delivery.ShipmentService;
+import ua.newerp.application.marketing.VoucherService;
 import ua.newerp.application.orders.AssignManagerRequest;
 import ua.newerp.application.orders.ChangeOrderStatusRequest;
 import ua.newerp.application.orders.NewOrderService;
@@ -106,6 +107,7 @@ public class OrderCardView extends VerticalLayout implements BeforeEnterObserver
     private final ShipmentRepository shipments;
     private final ShipmentService shipmentService;
     private final InternationalShipmentService international;
+    private final VoucherService vouchers;
     private final CashboxService cashbox;
     private final BankPaymentService bank;
     private final LiqPayService liqPay;
@@ -118,10 +120,11 @@ public class OrderCardView extends VerticalLayout implements BeforeEnterObserver
     private OrderDetails order;
 
     public OrderCardView(OrderQueries queries, OrderService orders, SmsService sms, SmsLog smsLog, SmsSender smsSender,
-            ShipmentRepository shipments, ShipmentService shipmentService, InternationalShipmentService international,
+            ShipmentRepository shipments, ShipmentService shipmentService, InternationalShipmentService international, VoucherService vouchers,
             CashboxService cashbox, BankPaymentService bank, LiqPayService liqPay, NewOrderService composition, ReturnService returns,
             CurrentSession session) {
         this.international = international;
+        this.vouchers = vouchers;
         this.queries = queries;
         this.orders = orders;
         this.sms = sms;
@@ -205,7 +208,7 @@ public class OrderCardView extends VerticalLayout implements BeforeEnterObserver
         header.setDefaultVerticalComponentAlignment(FlexComponent.Alignment.CENTER);
 
         var left = new Div(customer(), products(), history());
-        var right = new Div(statusPanel(), managerPanel(), deliveryPanel());
+        var right = new Div(statusPanel(), managerPanel(), deliveryPanel(), new VoucherPanel(vouchers, id, this::reload));
         if (session.hasAnyRole(Access.FINANCE)) {
             right.add(financePanel(), new LiqPayPanel(liqPay, id, order.total()));
         }

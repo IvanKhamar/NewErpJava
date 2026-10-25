@@ -42,4 +42,18 @@ class GiftVoucherTest {
         assertThat(GiftVoucher.usable(true, 2001, true)).isTrue();
         assertThat(GiftVoucher.usable(false, 0, true)).isFalse();
     }
+
+    @Test
+    void aSpendingFitsTheBalanceAndWhatTheOrderStillNeeds() {
+        BigDecimal balance = new BigDecimal("650");
+        BigDecimal left = new BigDecimal("500");
+
+        GiftVoucher.requireRedeemable(new BigDecimal("500"), balance, left, true);
+        assertThatThrownBy(() -> GiftVoucher.requireRedeemable(new BigDecimal("700"), balance, new BigDecimal("900"), true))
+                .hasMessage("На сертифікаті лише 650 грн.");
+        assertThatThrownBy(() -> GiftVoucher.requireRedeemable(new BigDecimal("600"), balance, left, true))
+                .hasMessage("Це більше, ніж лишилось сплатити за замовлення (500 грн).");
+        assertThatThrownBy(() -> GiftVoucher.requireRedeemable(BigDecimal.ZERO, balance, left, true)).isInstanceOf(RuntimeException.class);
+        assertThatThrownBy(() -> GiftVoucher.requireRedeemable(BigDecimal.TEN, balance, left, false)).hasMessageStartingWith("Сертифікат зараз");
+    }
 }

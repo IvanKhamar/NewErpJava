@@ -1,5 +1,6 @@
 package ua.newerp.infrastructure.marketing;
 
+import java.math.BigDecimal;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
@@ -124,6 +125,53 @@ class JdbcVoucherStore implements VoucherStore {
                 .param("lang", languageId)
                 .query((rs, n) -> new LookupItem(rs.getInt("voucher_theme_id"), rs.getString("name")))
                 .list();
+    }
+
+    @Override
+    public Optional<OrderSums> orderSums(int orderId) {
+        return jdbc.sql("SELECT total, prepayment FROM dd_order WHERE order_id = :id AND order_status_id > 0")
+                .param("id", orderId)
+                .query((rs, n) -> new OrderSums(rs.getBigDecimal("total"), rs.getBigDecimal("prepayment")))
+                .optional();
+    }
+
+    @Override
+    public Optional<SpentInOrder> spentInOrder(int orderId) {
+        return jdbc.sql("""
+                SELECT voucher_id, -SUM(amount) AS spent FROM dd_voucher_history WHERE order_id = :id
+                GROUP BY voucher_id HAVING spent <> 0 ORDER BY voucher_id LIMIT 1
+                """)
+                .param("id", orderId)
+                .query((rs, n) -> new SpentInOrder(rs.getInt("voucher_id"), rs.getBigDecimal("spent")))
+                .optional();
+    }
+
+    // OpenCart tables are MyISAM, without transactions: the same writes as the shop's checkout, one after another. The voucher
+    // line goes right before the total (sort 98 and 99), as OpenCart sorts them.
+    @Override
+    public void redeem(int orderId, int voucherId, String code, BigDecimal amount, LocalDateTime now) {
+        jdbc.sql("INSERT INTO dd_voucher_history (voucher_id, order_id, amount, date_added) VALUES (:voucher, :order, :amount, :now)")
+                .param("voucher", voucherId).param("order", orderId).param("amount", amount.negate()).param("now", now).update();
+        jdbc.sql("""
+                INSERT INTO dd_order_total (order_id, code, title, value, sort_order)
+                VALUES (:order, 'voucher', :title, :value, 98)
+                """)
+                .param("order", orderId).param("title", "Подарунковий сертифікат (" + code + ")").param("value", amount.negate()).update();
+        changeTotal(orderId, amount.negate());
+    }
+
+    @Override
+    public void release(int orderId, int voucherId, BigDecimal amount) {
+        jdbc.sql("DELETE FROM dd_voucher_history WHERE order_id = :order AND voucher_id = :voucher")
+                .param("order", orderId).param("voucher", voucherId).update();
+        jdbc.sql("DELETE FROM dd_order_total WHERE order_id = :order AND code = 'voucher'").param("order", orderId).update();
+        changeTotal(orderId, amount);
+    }
+
+    private void changeTotal(int orderId, BigDecimal by) {
+        jdbc.sql("UPDATE dd_order_total SET value = value + :by, sort_order = 99 WHERE order_id = :order AND code = 'total'")
+                .param("by", by).param("order", orderId).update();
+        jdbc.sql("UPDATE dd_order SET total = total + :by WHERE order_id = :order").param("by", by).param("order", orderId).update();
     }
 
     private static Map<String, Object> params(GiftVoucher v) {

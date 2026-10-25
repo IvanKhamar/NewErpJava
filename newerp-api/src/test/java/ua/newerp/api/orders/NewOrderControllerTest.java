@@ -119,6 +119,31 @@ class NewOrderControllerTest extends IntegrationTest {
         assertThat(mvc.get().uri("/orders/%d/composition".formatted(id)).session(login("keeper"))).hasStatus(403);
     }
 
+    @Test
+    void aGiftVoucherPaysPartOfTheOrderAndStaysWhenTheLinesChange() {
+        // One shirt for 900, discount 100, prepayment 200: 600 is left to pay.
+        int id = orderId(post("/orders", order("+380501112277", 1, 1)));
+        String code = read(post("/marketing/vouchers", "{\"toName\":\"Софія\",\"amount\":500}"), "$.code");
+
+        assertThat(post("/orders/%d/voucher".formatted(id), "{\"code\":\"%s\"}".formatted(code.toLowerCase()))).hasStatusOk().bodyJson()
+                .isLenientlyEqualTo("{\"code\":\"%s\",\"amount\":500.0000,\"orderTotal\":300.0000,\"voucherBalance\":0.0000}".formatted(code));
+        assertThat(post("/orders/%d/voucher".formatted(id), "{\"code\":\"%s\"}".formatted(code))).hasStatus(400); // one per order
+
+        // Three shirts and shipping: 2670, minus the voucher
+        assertThat(put("/orders/%d/composition".formatted(id), """
+                {"lines":[{"productId":60,"productOptionValueId":602,"quantity":3,"price":900}],
+                 "shippingCost":70,"discount":100,"prepayment":500}
+                """)).hasStatusOk().bodyJson().isLenientlyEqualTo("{\"total\":2170}");
+        assertThat(mvc.get().uri("/orders/" + id).session(olena)).bodyJson().isLenientlyEqualTo("{\"total\":2170.0000}");
+        // Cheaper than the voucher paid: refused, the order stays as it was
+        assertThat(put("/orders/%d/composition".formatted(id), "{\"lines\":[{\"productId\":60,\"productOptionValueId\":602,\"quantity\":1,\"price\":400}]}"))
+                .hasStatus(400);
+
+        assertThat(mvc.delete().uri("/orders/%d/voucher".formatted(id)).session(olena)).hasStatus(204);
+        assertThat(mvc.get().uri("/orders/" + id).session(olena)).bodyJson().isLenientlyEqualTo("{\"total\":2670.0000}");
+        assertThat(mvc.get().uri("/marketing/vouchers?search=" + code).session(olena)).bodyJson().extractingPath("$[0].balance").isEqualTo(500.0);
+    }
+
     private static String order(String phone, int statusId, int quantity) {
         return """
                 {"firstname":"Ганна","lastname":"Нова","telephone":"%s","email":"","instagram":"@hanna","orderSourceId":2,
@@ -142,8 +167,12 @@ class NewOrderControllerTest extends IntegrationTest {
     }
 
     private static int orderId(MvcTestResult result) {
+        return read(result, "$.orderId");
+    }
+
+    private static <T> T read(MvcTestResult result, String path) {
         try {
-            return JsonPath.read(result.getResponse().getContentAsString(StandardCharsets.UTF_8), "$.orderId");
+            return JsonPath.read(result.getResponse().getContentAsString(StandardCharsets.UTF_8), path);
         } catch (UnsupportedEncodingException e) {
             throw new UncheckedIOException(e);
         }
