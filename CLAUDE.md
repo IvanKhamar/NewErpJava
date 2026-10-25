@@ -2,7 +2,19 @@
 
 Java rewrite of NewErp (.NET 10, github.com/IvanKhamar/NewErp). Same business, same MySQL database `newerp_dev`,
 same HTTP API contract, so both versions can run side by side and the existing Blazor UI can talk to this API.
-The plan with phases lives in the project's plan doc; the .NET code is the reference for behaviour.
+The plan with phases lives in the project's plan doc.
+
+## Keeping both versions in sync
+
+The .NET version (`IvanKhamar/NewErp`, locally `F:\PROJECTS\NewErp\NewErp`) is developed in sync with this one
+(decided 2026-10-25):
+
+- Same features, database and API contract: paths, JSON field names, status codes and error texts. Then the Blazor UI
+  and the Vaadin UI work with either API.
+- One feature means one PR in each repo. The next feature starts only when the previous one is in both.
+- When porting a feature from .NET, its tests are the specification: port them as JUnit tests (and the other way round).
+- `db/schema.sql`, `db/reconstructed.sql`, `db/erp.sql` are identical in both repos; a schema change goes into both.
+- What is not ported yet is listed in Phase 16 of the project's plan doc.
 
 ## Stack
 
