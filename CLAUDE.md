@@ -15,6 +15,9 @@ The .NET version (`IvanKhamar/NewErp`, locally `F:\PROJECTS\NewErp\NewErp`) is d
 - When porting a feature from .NET, its tests are the specification: port them as JUnit tests (and the other way round).
 - `db/schema.sql`, `db/reconstructed.sql`, `db/erp.sql` are identical in both repos; a schema change goes into both.
 - What is not ported yet is listed in Phase 16 of the project's plan doc.
+- **Features built in .NET first are listed in `docs/from-dotnet.md`, with the contract and the tests to port.** Before
+  starting new work here, check it for `TODO` entries and port them first (one entry = one PR). When an entry is merged
+  here, set its status to `DONE` with the PR number and date.
 
 ## Stack
 
