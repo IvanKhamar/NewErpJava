@@ -11,10 +11,14 @@ The .NET version (`IvanKhamar/NewErp`, locally `F:\PROJECTS\NewErp\NewErp`) is d
 
 - Same features, database and API contract: paths, JSON field names, status codes and error texts. Then the Blazor UI
   and the Vaadin UI work with either API.
-- One feature means one PR in each repo. The next feature starts only when the previous one is in both.
+- One feature means one PR in each repo. A feature may land in one repo first (decided 2026-10-29); then it is written
+  down for the other one right away, so nothing is forgotten (see the `docs/from-dotnet.md` rule below).
 - When porting a feature from .NET, its tests are the specification: port them as JUnit tests (and the other way round).
 - `db/schema.sql`, `db/reconstructed.sql`, `db/erp.sql` are identical in both repos; a schema change goes into both.
 - What is not ported yet is listed in Phase 16 of the project's plan doc.
+- **Features built in .NET first are listed in `docs/from-dotnet.md`, with the contract and the tests to port.** Before
+  starting new work here, check it for `TODO` entries and port them first (one entry = one PR). When an entry is merged
+  here, set its status to `DONE` with the PR number and date.
 
 ## Stack
 
