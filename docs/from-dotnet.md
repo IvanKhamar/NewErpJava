@@ -84,3 +84,65 @@ Headers on **every** response:
 `src/NewErp.Application/Auth/LoginThrottle.cs`, `src/NewErp.Application/Auth/AuthService.cs` (LoginAsync),
 `src/NewErp.Api/Endpoints/AuthEndpoints.cs`, `src/NewErp.Api/SecurityHeaders.cs`, `src/NewErp.Api/Auth/AuthSetup.cs`,
 `src/NewErp.Api/Program.cs`, `.github/workflows/build.yml`, `.github/dependabot.yml`, README section "Безпека".
+
+---
+
+## 2. Materials needed for the sewing plan
+
+- **Status:** TODO
+- **.NET:** branch `feat/plan-materials` (2026-10-29), commit 47895cd. Check the PR number in NewErp once it is opened.
+- **Why:** the old module showed a missing material only while a cut or sew operation was already consuming "what is
+  there". This report says in advance what to buy for the current orders.
+
+### Contract (must match exactly)
+
+`GET /production/plan/materials`, same access as `GET /production/plan` (Admin and Storekeeper; Manager gets 403).
+
+Response `PlanMaterialsDto`:
+
+```json
+{
+  "materials": [
+    {
+      "itemId": 10, "name": "Тканина льон", "unit": "м",
+      "needed": 1.6, "inStock": 1, "onOrder": 0, "shortage": 0.6,
+      "uses": [ { "productionId": 1, "modelName": "Сукня", "sizeName": "M", "stage": "Крій", "quantity": 1.6 } ]
+    }
+  ],
+  "warnings": [ "Розхідника 99 зі специфікації моделі «Шарф» немає на складі, його не враховано." ]
+}
+```
+
+Rules:
+
+- Rows: the sewing plan with `onlyToSew = true` (rows where `toSew > 0`).
+- For each row (model, size): cutting needs `toCut ×` every component's cutting BOM, sewing needs `toSew ×` the sewing
+  BOM's **direct items** only (component lines are produced by cutting, so they are not counted). BOM lines resolve by the
+  usual rule: a line for this size overrides the all-sizes line of the same item. Exactly what the cut and sew operations
+  consume (`ForCut` / `ForSewing` in .NET `ProductionService`).
+- `stage` is `"Крій"` or `"Пошив"`. `uses` has one entry per (model, size, stage) with the summed quantity.
+- Per stock item: `needed` = the sum; `inStock` = the item's quantity; `onOrder` = open purchase orders not yet received
+  (the same number the reorder report subtracts); `shortage` = `max(0, needed − max(0, inStock) − onOrder)`.
+- Order: items with `shortage > 0` first, then by name (Ukrainian culture).
+- A BOM item that no longer exists in stock is left out and gives the warning text above (one per item and model).
+- Load the **full** model (with the sewing BOM). In .NET, `FindModelsAsync` loads sizes only, which would silently give
+  zero sewing needs.
+
+UI: under the plan on the "План пошиву" page, a "Розхідники для плану" table: material, needed (with unit), in stock,
+on order, shortage (red when above 0, "—" otherwise), and "На що" lines like `Сукня лляна M · крій 1.6`. Warnings as
+alerts above the table.
+
+### Tests to port (the specification)
+
+- `tests/NewErp.UnitTests/Domain/MaterialNeedsTests.cs`: the size override, all components' cutting BOMs, only direct
+  sewing items, nothing for zero quantities.
+- `tests/NewErp.IntegrationTests/PlanMaterialsApiTests.cs`: a model with one component (fabric 0.8 m) and a sewing BOM
+  (component + thread 0.1); order OrderId wants 2 M → fabric needed 1.6, in stock 1, shortage 0.6; thread 0.2, shortage
+  0.2; thread first (both short, by name); Manager 403.
+- `tests/NewErp.Web.Tests/SewingPlanPageTests.cs` → `Materials_ShowShortageInRed_AndWhatTheyAreFor`.
+
+### .NET files for reference
+
+`src/NewErp.Domain/Production/MaterialNeeds.cs`, `src/NewErp.Application/Production/PlanMaterialsService.cs`,
+`src/NewErp.Application/Production/ProductionModels.cs` (PlanMaterial* records), `src/NewErp.Api/Endpoints/ProductionEndpoints.cs`,
+`src/NewErp.Web/Pages/Manufacturing/SewingPlan.razor`.
