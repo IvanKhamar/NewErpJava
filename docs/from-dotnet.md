@@ -146,3 +146,31 @@ alerts above the table.
 `src/NewErp.Domain/Production/MaterialNeeds.cs`, `src/NewErp.Application/Production/PlanMaterialsService.cs`,
 `src/NewErp.Application/Production/ProductionModels.cs` (PlanMaterial* records), `src/NewErp.Api/Endpoints/ProductionEndpoints.cs`,
 `src/NewErp.Web/Pages/Manufacturing/SewingPlan.razor`.
+
+---
+
+## 3. Settings check for a copy of the real shop database (optional)
+
+- **Status:** TODO (optional)
+- **.NET:** NewErp #30 (`feat/schema-check`, 2026-10-29), tool `tools/NewErp.SchemaCheck`. No API change.
+- **Why:** Phase 14. The schema part is not needed here: Hibernate `ddl-auto: validate` already stops on every table or
+  column that differs. The **settings** part is worth having too: the app starts fine with a status id that does not
+  exist in the real shop, and then bonuses, the sewing plan or paid vouchers silently count the wrong orders.
+
+### What the .NET tool checks (port only the settings part)
+
+- `Erp:LanguageId` (here `erp.language-id`) has rows in `dd_order_status`; otherwise an error listing the languages that do.
+- Every id in the status lists (`.NET`: `Bonus:CountedStatusIds`, `Production:OrderSubtractStatusIds`,
+  `Production:PlanStatusIds`, `ProductSort:CountedStatusIds`, `Vouchers:PaidStatusIds`; use this repo's equivalents)
+  exists in `dd_order_status` for that language: a missing id is an error; each list is printed with the real names
+  (`22 «5) Відправлено», 20 «Виконано (B2B)»`) so a human can confirm the meaning.
+- `config_complete_status` and `config_processing_status` from `dd_setting` (`store_id = 0`) are printed with names.
+  OpenCart stores them as JSON (`["5","3"]`), as an older serialized PHP array (`a:2:{i:0;s:1:"5";...}`) or as a plain
+  number: take the quoted numbers, or all numbers when nothing is quoted. A warning when `config_complete_status`
+  differs from the paid-voucher statuses (the site and the ERP would disagree about whether a bought voucher is valid).
+- `dd_order_source` names for that language are printed.
+- Read-only session, no orders or customers read, the connection string never printed.
+
+Suggested form here: a Spring Boot `ApplicationRunner` behind a profile (e.g. `check-settings`) or a small test-scope
+main, run against `newerp_shop_copy`. Tests to port: `tests/NewErp.IntegrationTests/SchemaCheckTests.cs` → the
+`Settings_*` and `StatusIds_*` tests. .NET files: `tools/NewErp.SchemaCheck/SettingsCheck.cs`, `DatabaseSchema.cs`.
