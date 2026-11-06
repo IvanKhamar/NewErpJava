@@ -60,3 +60,8 @@ MySQL Connector/J, springdoc-openapi, JUnit 5 + AssertJ + Mockito, Testcontainer
   write the code yourself, and explain each new Java/Spring concept in 1–2 sentences (map it to .NET) in the PR.
 - Replies short and to the point. One recommendation, not several options.
 - Work in small PRs per phase step. Run `./mvnw verify` once at the end of a task, trim output.
+
+## Permissions
+
+They are in `F:\PROJECTS\CLAUDE.md` (outside this repo, for all projects): work without asking across `F:\PROJECTS`,
+with a short list of what still needs asking.
