@@ -1,5 +1,6 @@
 package ua.newerp.api.stock;
 
+import java.time.Clock;
 import java.time.LocalDate;
 
 import org.springframework.http.ContentDisposition;
@@ -31,9 +32,11 @@ class StocktakingController {
     private static final MediaType XLSX = MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
 
     private final StocktakingService service;
+    private final Clock clock;
 
-    StocktakingController(StocktakingService service) {
+    StocktakingController(StocktakingService service, Clock clock) {
         this.service = service;
+        this.clock = clock;
     }
 
     @GetMapping("/sheet.xlsx")
@@ -44,7 +47,7 @@ class StocktakingController {
         return ResponseEntity.ok()
                 .contentType(XLSX)
                 .header(HttpHeaders.CONTENT_DISPOSITION,
-                        ContentDisposition.attachment().filename("inventaryzatsiia-" + LocalDate.now() + ".xlsx").build().toString())
+                        ContentDisposition.attachment().filename("inventaryzatsiia-" + LocalDate.now(clock) + ".xlsx").build().toString())
                 .body(service.sheet(categoryId, warehouseId));
     }
 

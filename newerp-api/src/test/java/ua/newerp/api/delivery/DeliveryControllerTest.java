@@ -15,6 +15,7 @@ import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
 
 import ua.newerp.IntegrationTest;
+import ua.newerp.application.common.BusinessTime;
 
 /** Without an API key the stub client is used; fake-documents lets it "create" test waybills, as in local development. */
 @TestPropertySource(properties = "nova-poshta.fake-documents=true")
@@ -107,7 +108,7 @@ class DeliveryControllerTest extends IntegrationTest {
 
     @Test
     void remindersFromTodayToThreeDays() {
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(BusinessTime.ZONE);
         jdbc.sql("UPDATE dd_novaposhta_document SET status_code = 7, status = 'Прибув', date_payed_keeping = :d WHERE order_id = 1002")
                 .param("d", today.plusDays(2)).update();
         jdbc.sql("INSERT INTO dd_novaposhta_document (order_id, number, status_code, date_payed_keeping) VALUES (1001, '20450000000001', 8, :d)")

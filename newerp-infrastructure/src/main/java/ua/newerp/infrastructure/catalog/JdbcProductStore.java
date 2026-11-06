@@ -1,6 +1,7 @@
 package ua.newerp.infrastructure.catalog;
 
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.HashMap;
@@ -34,10 +35,12 @@ class JdbcProductStore implements ProductStore {
 
     private final JdbcClient jdbc;
     private final int languageId;
+    private final Clock clock;
 
-    JdbcProductStore(JdbcClient jdbc, ErpProperties properties) {
+    JdbcProductStore(JdbcClient jdbc, ErpProperties properties, Clock clock) {
         this.jdbc = jdbc;
         this.languageId = properties.languageId();
+        this.clock = clock;
     }
 
     @Override
@@ -124,8 +127,9 @@ class JdbcProductStore implements ProductStore {
         params.put("expected", expected);
         params.put("price", price);
         params.put("status", enabled == null ? null : enabled ? 1 : 0);
+        params.put("now", LocalDateTime.now(clock).withNano(0));
         return jdbc.sql("""
-                UPDATE dd_product SET price = COALESCE(:price, price), status = COALESCE(:status, status), date_modified = NOW()
+                UPDATE dd_product SET price = COALESCE(:price, price), status = COALESCE(:status, status), date_modified = :now
                 WHERE product_id = :id AND date_modified = :expected
                 """)
                 .params(params).update() == 1;

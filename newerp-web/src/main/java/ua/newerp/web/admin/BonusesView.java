@@ -19,6 +19,7 @@ import com.vaadin.flow.router.Route;
 import com.vaadin.flow.theme.lumo.LumoUtility;
 
 import jakarta.annotation.security.RolesAllowed;
+import ua.newerp.application.common.BusinessTime;
 import ua.newerp.application.staff.BonusReport;
 import ua.newerp.application.staff.BonusService;
 import ua.newerp.application.staff.ManagerBonusRow;
@@ -46,7 +47,7 @@ public class BonusesView extends VerticalLayout {
         var hint = new Paragraph("Рахуються замовлення відповідального менеджера, створені за період, у статусах, що зараховуються "
                 + "(налаштування bonus у application.yml).");
         hint.addClassName("secondary");
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(BusinessTime.ZONE);
         from.setLocale(Fmt.UK);
         to.setLocale(Fmt.UK);
         from.setValue(today.withDayOfMonth(1));

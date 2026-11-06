@@ -36,6 +36,7 @@ MySQL Connector/J, springdoc-openapi, JUnit 5 + AssertJ + Mockito, Testcontainer
   ProblemDetails titles (`ErrorHandler`). When in doubt, read the matching .NET endpoint.
 - Compiler warnings are errors (`-Werror` in the parent pom).
 - Dead code of the old OpenCart ERP (OpenBay, foreign payment gateways) is not ported.
+- The business date and local time are always Kyiv time, whatever zone the server runs in: services read the `Clock` bean, pages use `BusinessTime.ZONE`, never `LocalDate.now()` without an argument. The same rule is in .NET and Python.
 
 ## Database
 

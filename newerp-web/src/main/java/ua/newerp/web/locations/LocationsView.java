@@ -34,6 +34,7 @@ import com.vaadin.flow.server.streams.UploadHandler;
 import com.vaadin.flow.theme.lumo.LumoUtility;
 
 import jakarta.annotation.security.RolesAllowed;
+import ua.newerp.application.common.BusinessTime;
 import ua.newerp.application.locations.LocationDto;
 import ua.newerp.application.locations.LocationImportResult;
 import ua.newerp.application.locations.LocationService;
@@ -89,7 +90,7 @@ public class LocationsView extends VerticalLayout {
 
         var export = new Anchor(DownloadHandler.fromInputStream(e -> {
             byte[] file = service.export();
-            return new DownloadResponse(new ByteArrayInputStream(file), "sklady-" + LocalDate.now() + ".xlsx", XLSX, file.length);
+            return new DownloadResponse(new ByteArrayInputStream(file), "sklady-" + LocalDate.now(BusinessTime.ZONE) + ".xlsx", XLSX, file.length);
         }), "");
         export.add(new Button("Вивантажити в Excel", VaadinIcon.DOWNLOAD.create()));
         upload = new Upload(UploadHandler.inMemory((metadata, data) -> ui.access(() -> importFile(data))));

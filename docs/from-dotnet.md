@@ -174,3 +174,28 @@ alerts above the table.
 Suggested form here: a Spring Boot `ApplicationRunner` behind a profile (e.g. `check-settings`) or a small test-scope
 main, run against `newerp_shop_copy`. Tests to port: `tests/NewErp.IntegrationTests/SchemaCheckTests.cs` → the
 `Settings_*` and `StatusIds_*` tests. .NET files: `tools/NewErp.SchemaCheck/SettingsCheck.cs`, `DatabaseSchema.cs`.
+
+---
+
+## 4. The business date is always Kyiv time
+
+- **Status:** DONE (this repo: `fix/business-date-kyiv`, 2026-11-07; see its PR)
+- **.NET:** NewErp #40 (`fix/business-date-kyiv`, 2026-11-07). Python: `fix/business-date-kyiv`, item 82 of its plan.
+- **Why:** on a UTC server, .NET and Java said "today" was a day behind Python from 22:00 to 24:00 UTC (from 21:00 in
+  summer), which breaks the same-contract rule. Found by running all suites on a UTC clock in that window.
+
+### The rule
+
+The business date and local time are Europe/Kyiv, whatever zone the server, JVM or database runs in. No path, JSON field,
+status code or text changes. Stored dates stay naive local times.
+
+### Tests here
+
+- `ClockConfigTest`: fixed instants around the date change, winter (UTC+2) and summer (UTC+3).
+- `StocktakingFileNameTest`: at 23:30 UTC the file name has the next day's date.
+- Tests compare with `LocalDate.now(BusinessTime.ZONE)`. A SQL fixture must not use the database's `NOW()` for a date the
+  app compares with its own: `marketing.sql` did, and failed.
+
+### .NET files for reference
+
+`src/NewErp.Application/BusinessClock.cs`, `tests/NewErp.UnitTests/Application/BusinessClockTests.cs`.

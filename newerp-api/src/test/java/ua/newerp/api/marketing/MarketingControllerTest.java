@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
@@ -19,6 +20,7 @@ import org.springframework.test.web.servlet.assertj.MvcTestResult;
 import com.jayway.jsonpath.JsonPath;
 
 import ua.newerp.IntegrationTest;
+import ua.newerp.application.common.BusinessTime;
 
 /** SMS go to the stub here, as in local development. */
 @Sql({"/sql/users.sql", "/sql/orders.sql", "/sql/marketing.sql"})
@@ -33,6 +35,10 @@ class MarketingControllerTest extends IntegrationTest {
 
     @BeforeEach
     void logIn() {
+        // The date the app sees (Kyiv), not the database's NOW(): on a UTC database they differ at night.
+        LocalDate today = LocalDate.now(BusinessTime.ZONE);
+        jdbc.sql("UPDATE dd_order SET birthday_day = :day, birthday_month = :month WHERE order_id = 1001")
+                .param("day", today.getDayOfMonth()).param("month", today.getMonthValue()).update();
         olena = login("olena");
     }
 

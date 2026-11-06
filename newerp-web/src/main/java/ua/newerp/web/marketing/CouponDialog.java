@@ -14,6 +14,7 @@ import com.vaadin.flow.component.textfield.BigDecimalField;
 import com.vaadin.flow.component.textfield.IntegerField;
 import com.vaadin.flow.component.textfield.TextField;
 
+import ua.newerp.application.common.BusinessTime;
 import ua.newerp.application.marketing.CouponDto;
 import ua.newerp.application.marketing.CouponService;
 import ua.newerp.application.marketing.SaveCouponRequest;
@@ -64,7 +65,7 @@ class CouponDialog extends Dialog {
         usesPerCustomer.setHelperText("0 — без обмеження");
 
         if (coupon == null) {
-            LocalDate today = LocalDate.now();
+            LocalDate today = LocalDate.now(BusinessTime.ZONE);
             type.setValue(Coupon.PERCENT);
             start.setValue(today);
             end.setValue(today.plusMonths(1));
