@@ -179,7 +179,7 @@ main, run against `newerp_shop_copy`. Tests to port: `tests/NewErp.IntegrationTe
 
 ## 4. The business date is always Kyiv time
 
-- **Status:** DONE (this repo: `fix/business-date-kyiv`, 2026-11-07; see its PR)
+- **Status:** DONE (NewErpJava #64, 2026-11-07)
 - **.NET:** NewErp #40 (`fix/business-date-kyiv`, 2026-11-07). Python: `fix/business-date-kyiv`, item 82 of its plan.
 - **Why:** on a UTC server, .NET and Java said "today" was a day behind Python from 22:00 to 24:00 UTC (from 21:00 in
   summer), which breaks the same-contract rule. Found by running all suites on a UTC clock in that window.
