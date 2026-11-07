@@ -25,6 +25,7 @@ import ua.newerp.application.auth.SetAccessRequest;
 import ua.newerp.application.auth.UserAccessResult;
 import ua.newerp.application.auth.UserAdminService;
 import ua.newerp.application.auth.UserDto;
+import ua.newerp.application.common.BusinessTime;
 import ua.newerp.application.staff.BonusReport;
 import ua.newerp.application.staff.BonusService;
 import ua.newerp.application.staff.ManagerBonusRow;
@@ -99,8 +100,8 @@ class AdminViewsTest extends BrowserlessTest {
     @Test
     void bonusesShowTheRateAndTotal() {
         var bonuses = mock(BonusService.class);
-        LocalDate first = LocalDate.now().withDayOfMonth(1);
-        when(bonuses.calculate(first, LocalDate.now())).thenReturn(BonusReport.of(first, LocalDate.now(), new BigDecimal("2"),
+        LocalDate first = LocalDate.now(BusinessTime.ZONE).withDayOfMonth(1);
+        when(bonuses.calculate(first, LocalDate.now(BusinessTime.ZONE))).thenReturn(BonusReport.of(first, LocalDate.now(BusinessTime.ZONE), new BigDecimal("2"),
                 List.of(new ManagerBonusRow(7, "Олена Коваль", 3, new BigDecimal("5000"), new BigDecimal("100")))));
 
         var view = new BonusesView(bonuses);

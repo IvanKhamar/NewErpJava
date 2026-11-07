@@ -38,6 +38,7 @@ import com.vaadin.flow.server.streams.UploadHandler;
 import com.vaadin.flow.theme.lumo.LumoUtility;
 
 import jakarta.annotation.security.RolesAllowed;
+import ua.newerp.application.common.BusinessTime;
 import ua.newerp.application.common.LookupItem;
 import ua.newerp.application.locations.LocationService;
 import ua.newerp.application.stock.ApplyStocktakingRequest;
@@ -97,7 +98,7 @@ public class StocktakingView extends VerticalLayout {
         place.addValueChangeListener(e -> load());
         var sheet = new Anchor(DownloadHandler.fromInputStream(e -> {
             byte[] file = service.sheet(categoryId(), warehouseId());
-            return new DownloadResponse(new ByteArrayInputStream(file), "inventaryzatsiia-" + LocalDate.now() + ".xlsx", XLSX,
+            return new DownloadResponse(new ByteArrayInputStream(file), "inventaryzatsiia-" + LocalDate.now(BusinessTime.ZONE) + ".xlsx", XLSX,
                     file.length);
         }), "");
         sheet.add(new Button("Відомість Excel", VaadinIcon.DOWNLOAD.create()));

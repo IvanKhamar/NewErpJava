@@ -1,6 +1,7 @@
 package ua.newerp.api.locations;
 
 import java.net.URI;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
@@ -35,9 +36,11 @@ class LocationController {
     private static final MediaType XLSX = MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
 
     private final LocationService service;
+    private final Clock clock;
 
-    LocationController(LocationService service) {
+    LocationController(LocationService service, Clock clock) {
         this.service = service;
+        this.clock = clock;
     }
 
     @GetMapping({"", "/"})
@@ -79,7 +82,7 @@ class LocationController {
         return ResponseEntity.ok()
                 .contentType(XLSX)
                 .header(HttpHeaders.CONTENT_DISPOSITION,
-                        ContentDisposition.attachment().filename("sklady-" + LocalDate.now() + ".xlsx").build().toString())
+                        ContentDisposition.attachment().filename("sklady-" + LocalDate.now(clock) + ".xlsx").build().toString())
                 .body(service.export());
     }
 

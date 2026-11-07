@@ -25,6 +25,7 @@ import com.vaadin.flow.server.streams.DownloadHandler;
 import com.vaadin.flow.server.streams.DownloadResponse;
 
 import jakarta.annotation.security.RolesAllowed;
+import ua.newerp.application.common.BusinessTime;
 import ua.newerp.application.marketing.ContactExportRequest;
 import ua.newerp.application.marketing.MarketingService;
 import ua.newerp.domain.marketing.ContactField;
@@ -71,7 +72,7 @@ public class ContactExportView extends VerticalLayout {
         var link = new Anchor(DownloadHandler.fromInputStream(e -> {
             byte[] csv = csv();
             String name = "contacts-" + (field.getValue() == ContactField.PHONE ? "phones" : "emails") + "-"
-                    + LocalDateTime.now().format(FILE_TIME) + ".csv";
+                    + LocalDateTime.now(BusinessTime.ZONE).format(FILE_TIME) + ".csv";
             return new DownloadResponse(new ByteArrayInputStream(csv), name, "text/csv; charset=utf-8", csv.length);
         }), "");
         link.add(download);
