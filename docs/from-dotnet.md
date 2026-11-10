@@ -199,3 +199,32 @@ status code or text changes. Stored dates stay naive local times.
 ### .NET files for reference
 
 `src/NewErp.Application/BusinessClock.cs`, `tests/NewErp.UnitTests/Application/BusinessClockTests.cs`.
+
+## 5. Print data for the invoice and the shipping list
+
+- **Status:** TODO (with the port of items 35–42 from `docs/from-python.md`)
+- **.NET:** NewErp #41 (`feat/py-order-tools`, 2026-11-10). Python builds its print pages on the server and has no such
+  endpoint yet (item 84 of its plan).
+- **Why:** a browser UI that talks only to the API (Blazor, and Vaadin calling another version's API) needs the print data
+  as JSON.
+
+### Contract
+
+- `GET /orders/print?ids=1&ids=2`, policy `Orders` (admin and manager). From 1 to 100 ids, else 400
+  "Оберіть від 1 до 100 замовлень.". Unknown ids are left out; the rest come in the order of `ids`, each once.
+- Returns `[{id, invoice, dateAdded, customer, telephone, email, shippingMethod, shippingAddress, paymentMethod, comment,
+  currencyCode, store: {name, address, telephone, email}, lines: [{name, model, options, quantity, price, total}],
+  totals: [{title, value}]}]`.
+- `invoice`: prefix and number, or null without a number. `store`: `config_name`, `config_address`, `config_telephone`,
+  `config_email` of store 0 in `dd_setting`. `options`: "Розмір: M, Колір: чорний" in `order_option_id` order.
+  `shippingAddress`: city, address 1, address 2 and "house, кв. flat", non-empty parts joined with ", ". `totals` in
+  `sort_order`.
+
+### Tests to port
+
+- `OrderToolsApiTests.PrintData_ListsTheOrdersInTheirOrder_WithOptionsAndTotals`.
+
+### .NET files for reference
+
+- `src/NewErp.Api/Endpoints/OrderEndpoints.cs` (`/print`), `src/NewErp.Infrastructure/Orders/OrderQueries.cs` (`PrintAsync`),
+  `src/NewErp.Application/Orders/OrderToolModels.cs` (`PrintOrderDto`), `src/NewErp.Web/Pages/Sales/OrderPrint.razor`.
